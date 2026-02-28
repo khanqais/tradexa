@@ -1,6 +1,9 @@
 package routes
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/khanqais/tradexa/handlers"
+)
 
 func RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api")
@@ -10,6 +13,8 @@ func RegisterRoutes(r *gin.Engine) {
 				"status": "Bidding api is working",
 			})
 		})
+		api.POST("/login", handlers.Login)
+		api.POST("/register", handlers.Register)
 	}
-	
+
 }
