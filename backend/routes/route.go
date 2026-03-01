@@ -16,10 +16,17 @@ func RegisterRoutes(r *gin.Engine) {
 		})
 		api.POST("/login", handlers.Login)
 		api.POST("/register", handlers.Register)
+		api.GET("/listings", handlers.GetListings)
+		api.GET("/listings/:id", handlers.GetListingByID)
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{
 			protected.GET("/me", handlers.GetMe)
+			protected.POST("/listings", handlers.CreateListing)
+			protected.PUT("/listings/:id", handlers.UpdateListing)
+			protected.DELETE("/listings/:id", handlers.DeleteListing)
+			protected.POST("/upload", handlers.UploadImage)
+
 		}
 	}
 

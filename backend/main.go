@@ -16,7 +16,8 @@ func main() {
 		log.Println("No .env found")
 	}
 	config.ConnectDB()
-	config.DB.AutoMigrate(&models.User{})
+	config.ConnectCloudinary()
+	config.DB.AutoMigrate(&models.User{}, &models.Listing{})
 	r := gin.Default()
 	routes.RegisterRoutes(r)
 	r.Run(":8080")
