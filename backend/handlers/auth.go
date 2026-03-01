@@ -92,15 +92,10 @@ func Login(c *gin.Context) {
 		return
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		if user.Password != input.Password {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-			return
-		}
-		hashpassword, hashErr := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-		if hashErr == nil {
-			_ = config.DB.Model(&user).Update("password", string(hashpassword)).Error
-		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
 	}
+
 	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
 	if secret == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT_SECRET not configured"})
@@ -133,4 +128,15 @@ func Login(c *gin.Context) {
 		},
 	})
 
+}
+
+func GetMe(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	email, _ := c.Get("email")
+	role, _ := c.Get("role")
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": userID,
+		"email":   email,
+		"role":    role,
+	})
 }
