@@ -28,6 +28,16 @@ func (c *Client) ReadPump(listingID string) {
 		c.Hub.unregister <- c
 		c.Conn.Close()
 	}()
+
+	c.Conn.SetReadLimit(maxMessage)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+
+	// when we receive a pong (response to our ping), reset the deadline
+	// this is how we know the client is still alive
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 	
 
 }
