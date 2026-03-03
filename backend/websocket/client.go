@@ -1,15 +1,20 @@
 package websocket
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/khanqais/tradexa/config"
+	"github.com/khanqais/tradexa/models"
 )
 
 const (
 	writeWait  = 10 * time.Second
 	pongWait   = 60 * time.Second
-	pongPeriod = (pongWait * 9) / 10
+	pingPeriod = (pongWait * 9) / 10
 	maxMessage = 1024
 )
 
@@ -38,6 +43,88 @@ func (c *Client) ReadPump(listingID string) {
 		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
-	
 
+	//infinite loop -> keep reading until connection break
+	for {
+		_, raw, err := c.Conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+			) {
+				log.Printf("Websocket read error:%v", err)
+			}
+			break
+		}
+		var incoming struct {
+			Content string `json:"content"`
+		}
+		if err := json.Unmarshal(raw, &incoming); err != nil || incoming.Content == "" {
+			continue
+		}
+		listingIDint := parseUnit(listingID)
+		msg := models.Message{
+			ListingID: listingIDint,
+			SenderID:  c.UserID,
+			Content:   incoming.Content,
+		}
+		config.DB.Create(&msg)
+
+		// push to hub's broadcast channel — hub will deliver to all clients
+		type outMsg struct {
+			SenderID   uint      `json:"sender_id"`
+			SenderName string    `json:"sender_name"`
+			Content    string    `json:"content"`
+			ListingID  string    `json:"listing_id"`
+			SentAt     time.Time `json:"sent_at"`
+		}
+		out := outMsg{
+			SenderID:   c.UserID,
+			SenderName: c.Name,
+			Content:    incoming.Content,
+			ListingID:  listingID,
+			SentAt:     time.Now(),
+		}
+		// marshal struct back to JSON bytes
+		outBytes, _ := json.Marshal(out)
+		// push to hub's broadcast channel — hub will deliver to all clients
+		c.Hub.broadcast <- outBytes
+
+	}
+}
+
+// WritePump runs in its own goroutine — continuously sends messages TO the browser
+// it reads from client.Send channel (messages put there by the hub)
+func (c *Client) WritePump() {
+	// ticker fires every pingPeriod to send a ping to the browser
+	// browser must reply with a pong — this confirms the connection is still alive
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.Conn.Close()
+	}()
+	select {
+	// CASE 1 — hub has a message ready for this client
+	case message, ok := <-c.Send:
+		c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+		if !ok {
+			c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+			return
+		}
+		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			return
+		}
+
+	case <-ticker.C:
+		c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+		if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			return
+		}
+	}
+}
+
+func parseUnit(s string) uint {
+	var n uint64
+	fmt.Sscanf(s, "%d", &n)
+	return uint(n)
 }
