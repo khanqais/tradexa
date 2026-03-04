@@ -18,6 +18,7 @@ func RegisterRoutes(r *gin.Engine) {
 		api.POST("/register", handlers.Register)
 		api.GET("/listings", handlers.GetListings)
 		api.GET("/listings/:id", handlers.GetListingByID)
+		api.GET("/chat/:listingId/history", handlers.GetChatHistory)
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{
@@ -26,6 +27,7 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.PUT("/listings/:id", handlers.UpdateListing)
 			protected.DELETE("/listings/:id", handlers.DeleteListing)
 			protected.POST("/upload", handlers.UploadImage)
+			protected.GET("/ws/chat/:listingId", handlers.ChatHandler)
 
 		}
 	}

@@ -11,28 +11,29 @@ import (
 
 func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var tokenString string
+
+		// first check Authorization header (REST routes)
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header missing"})
+		if authHeader != "" {
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+				tokenString = parts[1]
+			}
+		}
+
+		// fallback — check ?token= query param (WebSocket routes)
+		if tokenString == "" {
+			tokenString = strings.TrimSpace(c.Query("token"))
+		}
+
+		if tokenString == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization token missing"})
 			c.Abort()
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
 		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT_SECRET not configured"})
-			c.Abort()
-			return
-		}
-
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrTokenSignatureInvalid
@@ -50,6 +51,7 @@ func AuthRequired() gin.HandlerFunc {
 			c.Set("user_id", claims["user_id"])
 			c.Set("email", claims["email"])
 			c.Set("role", claims["role"])
+			c.Set("name", claims["name"])
 		}
 
 		c.Next()

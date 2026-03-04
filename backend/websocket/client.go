@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"time"
-
 	"github.com/gorilla/websocket"
 	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/models"
@@ -103,22 +102,24 @@ func (c *Client) WritePump() {
 		ticker.Stop()
 		c.Conn.Close()
 	}()
-	select {
-	// CASE 1 — hub has a message ready for this client
-	case message, ok := <-c.Send:
-		c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-		if !ok {
-			c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-			return
-		}
-		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			return
-		}
+	for {
+		select {
+		// CASE 1 — hub has a message ready for this client
+		case message, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				return
+			}
 
-	case <-ticker.C:
-		c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-		if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-			return
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
 }

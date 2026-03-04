@@ -105,6 +105,7 @@ func Login(c *gin.Context) {
 		"user_id": user.ID,
 		"email":   user.Email,
 		"role":    string(user.Role),
+		"name":    user.Name,
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 		"iat":     time.Now().Unix(),
 	}

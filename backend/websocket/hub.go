@@ -4,20 +4,9 @@ package websocket
 // Think of it as a post office — clients register themselves,
 // and when a message arrives, the hub delivers it to everyone
 type Hub struct {
-	// map of connected clients — value is bool (just used as a set, value doesn't matter)
-	// key = pointer to Client, so each client is unique even if same user reconnects
-	clients map[*Client]bool
-
-	// broadcast is a channel — any message sent here gets forwarded to ALL clients
-	// channel is like a pipe — one goroutine pushes, another reads
-	broadcast chan []byte
-
-	// register is a channel — when a new client connects, they send themselves here
-	// hub's Run() loop picks it up and adds them to the clients map
-	register chan *Client
-
-	// unregister is a channel — when a client disconnects, they send themselves here
-	// hub's Run() loop picks it up and removes them from the clients map
+	clients    map[*Client]bool
+	broadcast  chan []byte
+	Register   chan *Client
 	unregister chan *Client
 }
 
@@ -25,14 +14,9 @@ type Hub struct {
 // called once per listing when the first user connects to that listing's chat
 func NewHub() *Hub {
 	return &Hub{
-		clients: make(map[*Client]bool),
-
-		// buffered channel of size 256 — can hold 256 messages before blocking
-		// prevents the sender from being stuck if hub is briefly busy
-		broadcast: make(chan []byte, 256),
-
-		// unbuffered — register/unregister must be handled immediately
-		register:   make(chan *Client),
+		clients:    make(map[*Client]bool),
+		broadcast:  make(chan []byte, 256),
+		Register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
 }
@@ -43,9 +27,8 @@ func NewHub() *Hub {
 func (h *Hub) Run() {
 	for {
 		select {
-
 		// CASE 1 — a new client just connected
-		case client := <-h.register:
+		case client := <-h.Register:
 			// add client to the map — now they'll receive all future broadcasts
 			h.clients[client] = true
 
