@@ -204,26 +204,38 @@ func (c *Client) ReadPumpForConversation(conversationID string) {
 		}
 		config.DB.Create(&msg)
 
-		// Notify the other participant in the conversation
+		// Notify the other participant only if they are NOT already connected to this hub
+		// (i.e. they're on a different page). If they're in the hub they'll get the broadcast.
 		var recipientID uint
 		if conversation.BuyerID == c.UserID {
 			recipientID = conversation.SellerID
 		} else {
 			recipientID = conversation.BuyerID
 		}
-
-		// Create notification for the recipient
-		notification := map[string]interface{}{
-			"type":           "new_message",
-			"conversation_id": conversationID,
-			"listing_id":     conversation.ListingID,
-			"sender_id":      c.UserID,
-			"sender_name":    c.Name,
-			"content":        incoming.Content,
-			"sent_at":        time.Now(),
+		// Only send a push notification if the recipient has no active client in THIS hub.
+		// If they're connected here the hub.broadcast below will deliver the message.
+		recipientInHub := false
+		if c.Hub != nil {
+			for hubClient := range c.Hub.clients {
+				if hubClient.UserID == recipientID {
+					recipientInHub = true
+					break
+				}
+			}
 		}
-		notifBytes, _ := json.Marshal(notification)
-		Manager.NotifyUser(recipientID, notifBytes)
+		if !recipientInHub {
+			notification := map[string]interface{}{
+				"type":            "new_message",
+				"conversation_id": conversationID,
+				"listing_id":      conversation.ListingID,
+				"sender_id":       c.UserID,
+				"sender_name":     c.Name,
+				"content":         incoming.Content,
+				"sent_at":         time.Now(),
+			}
+			notifBytes, _ := json.Marshal(notification)
+			Manager.NotifyUser(recipientID, notifBytes)
+		}
 
 		// push to hub's broadcast channel — hub will deliver to all clients in this conversation
 		type outMsg struct {
