@@ -94,8 +94,8 @@ export default function ConversationsPage() {
                 </div>
               </div>
               <div className="conversation-item__listing">
-                {conversation.listing?.image_url ? (
-                  <img src={conversation.listing.image_url} alt={conversation.listing.title} />
+                {conversation.listing?.images?.[0]?.url || conversation.listing?.image_url ? (
+                  <img src={conversation.listing?.images?.[0]?.url || conversation.listing.image_url} alt={conversation.listing.title} />
                 ) : (
                   <Package size={24} />
                 )}

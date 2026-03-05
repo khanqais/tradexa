@@ -40,6 +40,7 @@ export default function ListingDetailPage() {
   const [error, setError]       = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Countdown timer
   const [countdown, setCountdown] = useState('');
@@ -147,28 +148,79 @@ export default function ListingDetailPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          {/* Image */}
-          <div className="detail__img-wrap">
-            {listing.image_url ? (
-              <img src={listing.image_url} alt={listing.title} className="detail__img" />
-            ) : (
-              <div className="detail__img-placeholder">
-                <Package size={48} strokeWidth={1} />
+          {/* Image Gallery */}
+          <div className="detail__gallery">
+            {/* Main Image */}
+            <div className="detail__img-wrap">
+              {listing.images?.[currentImageIndex]?.url || listing.images?.[0]?.url || listing.image_url ? (
+                <img 
+                  src={listing.images?.[currentImageIndex]?.url || listing.images?.[0]?.url || listing.image_url} 
+                  alt={listing.title} 
+                  className="detail__img" 
+                />
+              ) : (
+                <div className="detail__img-placeholder">
+                  <Package size={48} strokeWidth={1} />
+                </div>
+              )}
+              
+              {/* Type badge */}
+              <div className="detail__img-badge">
+                {isAuction ? (
+                  <span className="tag tag--auction">
+                    <Zap size={11} strokeWidth={2.5} /> Live Auction
+                  </span>
+                ) : (
+                  <span className="tag tag--fixed">
+                    <ShieldCheck size={11} strokeWidth={2} /> Buy Now
+                  </span>
+                )}
+                {listing.is_sold && <span className="tag tag--sold">Sold</span>}
+              </div>
+
+              {/* Image counter */}
+              {listing.images && listing.images.length > 1 && (
+                <div className="detail__img-counter">
+                  {currentImageIndex + 1} / {listing.images.length}
+                </div>
+              )}
+
+              {/* Navigation arrows */}
+              {listing.images && listing.images.length > 1 && (
+                <>
+                  <button
+                    className="detail__img-nav detail__img-nav--prev"
+                    onClick={() => setCurrentImageIndex((idx) => (idx - 1 + listing.images.length) % listing.images.length)}
+                    aria-label="Previous image"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className="detail__img-nav detail__img-nav--next"
+                    onClick={() => setCurrentImageIndex((idx) => (idx + 1) % listing.images.length)}
+                    aria-label="Next image"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnails */}
+            {listing.images && listing.images.length > 1 && (
+              <div className="detail__thumbnails">
+                {listing.images.map((image, idx) => (
+                  <button
+                    key={idx}
+                    className={`detail__thumbnail ${idx === currentImageIndex ? 'detail__thumbnail--active' : ''}`}
+                    onClick={() => setCurrentImageIndex(idx)}
+                    aria-label={`View image ${idx + 1}`}
+                  >
+                    <img src={image.url} alt={`${listing.title} - ${idx + 1}`} />
+                  </button>
+                ))}
               </div>
             )}
-            {/* Type badge */}
-            <div className="detail__img-badge">
-              {isAuction ? (
-                <span className="tag tag--auction">
-                  <Zap size={11} strokeWidth={2.5} /> Live Auction
-                </span>
-              ) : (
-                <span className="tag tag--fixed">
-                  <ShieldCheck size={11} strokeWidth={2} /> Buy Now
-                </span>
-              )}
-              {listing.is_sold && <span className="tag tag--sold">Sold</span>}
-            </div>
           </div>
 
           {/* Info */}

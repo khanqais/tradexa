@@ -144,8 +144,8 @@ export default function MyListingsPage() {
                       {/* Item */}
                       <div className="mylistings__row-item">
                         <div className="mylistings__row-img">
-                          {listing.image_url ? (
-                            <img src={listing.image_url} alt={listing.title} />
+                          {listing.images?.[0]?.url || listing.image_url ? (
+                            <img src={listing.images?.[0]?.url || listing.image_url} alt={listing.title} />
                           ) : (
                             <span className="mylistings__row-img-placeholder">◈</span>
                           )}
@@ -230,8 +230,8 @@ export default function MyListingsPage() {
                   >
                     <div className="mylistings__row-item">
                       <div className="mylistings__row-img mylistings__row-img--sold">
-                        {listing.image_url ? (
-                          <img src={listing.image_url} alt={listing.title} />
+                        {listing.images?.[0]?.url || listing.image_url ? (
+                          <img src={listing.images?.[0]?.url || listing.image_url} alt={listing.title} />
                         ) : (
                           <span className="mylistings__row-img-placeholder">◈</span>
                         )}

@@ -38,9 +38,9 @@ export default function ListingCard({ listing, index = 0 }) {
       <Link to={`/listings/${listing.id}`} className="listing-card__link">
         {/* Image */}
         <div className="listing-card__img-wrap">
-          {listing.image_url ? (
+          {listing.images?.[0]?.url || listing.image_url ? (
             <img
-              src={listing.image_url}
+              src={listing.images?.[0]?.url || listing.image_url}
               alt={listing.title}
               className="listing-card__img"
               loading="lazy"

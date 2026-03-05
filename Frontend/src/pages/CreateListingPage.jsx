@@ -24,12 +24,12 @@ export default function CreateListingPage() {
     reserve_price: '',
     type: 'fixed',
     category: '',
-    image_url: '',
+    image_urls: [], // Changed to array for multiple images
     auction_ends_at: '',
   });
 
-  const [imageFile, setImageFile]   = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
+  const [imageFiles, setImageFiles] = useState([]); // Changed to handle multiple files
+  const [imagePreviews, setImagePreviews] = useState([]); // Changed to handle multiple previews
   const [uploading, setUploading]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState('');
@@ -53,29 +53,39 @@ export default function CreateListingPage() {
   };
 
   const handleImagePick = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    // Add new files to the existing array
+    const newFiles = [...imageFiles, ...files];
+    setImageFiles(newFiles);
+    
+    // Generate previews for all files
+    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+    setImagePreviews(newPreviews);
 
+  };
   const handleImageDrop = (e) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith('image/')) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    const files = Array.from(e.dataTransfer.files);
+    if (!files.length || !files.every(file => file.type.startsWith('image/'))) return;
+    // Add new files to the existing array
+    const newFiles = [...imageFiles, ...files];
+    setImageFiles(newFiles);
+    
+    // Generate previews for all files
+    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+    setImagePreviews(newPreviews);
   };
-
   const handleImageUpload = async () => {
-    if (!imageFile) return form.image_url;
+    if (!imageFiles.length) return form.image_urls;
     setUploading(true);
     try {
-      const res = await uploadImage(imageFile);
-      const url = res.data.url;
-      setForm(f => ({ ...f, image_url: url }));
-      return url;
-    } catch {
+      const uploadPromises = imageFiles.map(file => uploadImage(file));
+      // Upload all selected images and collect the URLs
+      const results = await Promise.all(uploadPromises);
+      const urls = results.map(res => res.data.url);
+      setForm(f => ({ ...f, image_urls: urls }));
+      return urls;
       setError('Image upload failed. Please try again.');
       return null;
     } finally {
@@ -109,10 +119,10 @@ export default function CreateListingPage() {
 
     try {
       // Upload image first if one was chosen
-      let imageUrl = form.image_url;
-      if (imageFile) {
-        imageUrl = await handleImageUpload();
-        if (!imageUrl) { setSubmitting(false); return; }
+      let imageUrls = form.image_urls;
+      if (imageFiles.length > 0) {
+        imageUrls = await handleImageUpload();
+        if (!imageUrls) { setSubmitting(false); return; }
       }
 
       const payload = {
@@ -121,7 +131,7 @@ export default function CreateListingPage() {
         price:        parseFloat(form.price),
         type:         form.type,
         category:     form.category,
-        image_url:    imageUrl || '',
+        image_urls:   imageUrls || [],
       };
 
       if (form.reserve_price && parseFloat(form.reserve_price) > 0)
@@ -310,18 +320,22 @@ export default function CreateListingPage() {
               <h3 className="create__section-title">Item Photo</h3>
 
               <div
-                className={`create__dropzone ${imagePreview ? 'create__dropzone--has-image' : ''}`}
+                className={'create__dropzone ' + (imagePreviews.length > 0 ? 'create__dropzone--has-image' : '')}
                 onDragOver={e => e.preventDefault()}
                 onDrop={handleImageDrop}
                 onClick={() => fileInputRef.current?.click()}
               >
-                {imagePreview ? (
-                  <>
-                    <img src={imagePreview} alt="Preview" className="create__dropzone-img" />
+                {imagePreviews.length > 0 ? (
+                  <div className="create__dropzone-multiple-preview">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="create__preview-thumb-wrapper">
+                        <img src={preview} alt={`Preview ${index + 1}`} className="create__preview-thumb" />
+                      </div>
+                    ))}
                     <div className="create__dropzone-overlay">
-                      <span>Click to change</span>
+                      <span>Add more images</span>
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="create__dropzone-placeholder">
                     <span className="create__dropzone-icon">⊞</span>
@@ -334,22 +348,23 @@ export default function CreateListingPage() {
                   ref={fileInputRef}
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp"
+                  multiple
                   className="create__file-input"
                   onChange={handleImagePick}
                 />
               </div>
 
-              {imagePreview && (
+              {imagePreviews.length > 0 && (
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm create__remove-img"
                   onClick={() => {
-                    setImageFile(null);
-                    setImagePreview('');
-                    setForm(f => ({ ...f, image_url: '' }));
+                    setImageFiles([]);
+                    setImagePreviews([]);
+                    setForm(f => ({ ...f, image_urls: [] }));
                   }}
                 >
-                  ✕ Remove image
+                  ✕ Remove all images
                 </button>
               )}
 
@@ -360,11 +375,11 @@ export default function CreateListingPage() {
                   className="form-input"
                   type="url"
                   placeholder="https://…"
-                  value={imageFile ? '' : form.image_url}
+                  value={imageFiles.length > 0 ? '' : form.image_urls[0] || ''}
                   onChange={e => {
-                    if (!imageFile) handleChange('image_url', e.target.value);
+                    if (imageFiles.length === 0) handleChange('image_urls', [e.target.value]);
                   }}
-                  disabled={!!imageFile}
+                  disabled={imageFiles.length > 0}
                 />
               </div>
             </div>
@@ -374,10 +389,10 @@ export default function CreateListingPage() {
               <div className="create__section create__preview-section">
                 <h3 className="create__section-title">Preview</h3>
                 <div className="create__preview-card">
-                  {(imagePreview || form.image_url) && (
+                  {(imagePreviews.length > 0 || form.image_urls.length > 0) && (
                     <div className="create__preview-img-wrap">
                       <img
-                        src={imagePreview || form.image_url}
+                        src={imagePreviews[0] || form.image_urls[0]}
                         alt="preview"
                         className="create__preview-img"
                         onError={e => { e.target.style.display = 'none'; }}

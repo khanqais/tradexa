@@ -20,17 +20,17 @@ type CreateListingInput struct {
 	ReservePrice  float64    `json:"reserve_price"`
 	Type          string     `json:"type" binding:"required,oneof=fixed auction"`
 	Category      string     `json:"category" binding:"required"`
-	ImageURL      string     `json:"image_url"`
+	ImageURLs     []string   `json:"image_urls"`
 	AuctionEndsAt *time.Time `json:"auction_ends_at"`
 }
 
 type UpdateListingInput struct {
-	Title        string  `json:"title" binding:"omitempty,min=3"`
-	Description  string  `json:"description" binding:"omitempty,min=10"`
-	Price        float64 `json:"price" binding:"omitempty,gt=0"`
-	ReservePrice float64 `json:"reserve_price"`
-	Category     string  `json:"category"`
-	ImageURL     string  `json:"image_url"`
+	Title        string   `json:"title" binding:"omitempty,min=3"`
+	Description  string   `json:"description" binding:"omitempty,min=10"`
+	Price        float64  `json:"price" binding:"omitempty,gt=0"`
+	ReservePrice float64  `json:"reserve_price"`
+	Category     string   `json:"category"`
+	ImageURLs    []string `json:"image_urls"`
 }
 
 func CreateListing(c *gin.Context) {
@@ -59,7 +59,7 @@ func CreateListing(c *gin.Context) {
 		ReservePrice:  input.ReservePrice,
 		Type:          models.ListingType(input.Type),
 		Category:      input.Category,
-		ImageURL:      input.ImageURL,
+		ImageURL:      "", // Will use Images relation instead
 		SellerID:      sellerID,
 		AuctionEndsAt: input.AuctionEndsAt,
 	}
@@ -69,7 +69,17 @@ func CreateListing(c *gin.Context) {
 		})
 		return
 	}
-	config.DB.WithContext(c.Request.Context()).Preload("Seller").First(&listing, listing.ID)
+	// Create ListingImage records for each image URL
+	for _, imageURL := range input.ImageURLs {
+		listingImage := models.ListingImage{
+			ListingID: listing.ID,
+			URL:       imageURL,
+		}
+		config.DB.WithContext(c.Request.Context()).Create(&listingImage)
+	}
+
+	// Preload the images for the response
+	config.DB.WithContext(c.Request.Context()).Preload("Seller").Preload("Images").First(&listing, listing.ID)
 	listing.Seller.Password = ""
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -81,7 +91,7 @@ func GetListingByID(c *gin.Context) {
 	id := c.Param("id")
 
 	var listing models.Listing
-	if err := config.DB.WithContext(c.Request.Context()).Preload("Seller").First(&listing, id).Error; err != nil {
+	if err := config.DB.WithContext(c.Request.Context()).Preload("Seller").Preload("Images").First(&listing, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
 			return
@@ -97,7 +107,7 @@ func GetListingByID(c *gin.Context) {
 func GetListings(c *gin.Context) {
 	var listings []models.Listing
 
-	query := config.DB.WithContext(c.Request.Context()).Preload("Seller")
+	query := config.DB.WithContext(c.Request.Context()).Preload("Seller").Preload("Images")
 
 	// ?search=laptop
 	if search := strings.TrimSpace(c.Query("search")); search != "" {
@@ -201,8 +211,18 @@ func UpdateListing(c *gin.Context) {
 	if input.Category != "" {
 		updates["category"] = input.Category
 	}
-	if input.ImageURL != "" {
-		updates["image_url"] = input.ImageURL
+	if len(input.ImageURLs) > 0 {
+		// Delete existing images for this listing
+		config.DB.WithContext(c.Request.Context()).Where("listing_id = ?", listing.ID).Delete(&models.ListingImage{})
+
+		// Create new ListingImage records for each image URL
+		for _, imageURL := range input.ImageURLs {
+			listingImage := models.ListingImage{
+				ListingID: listing.ID,
+				URL:       imageURL,
+			}
+			config.DB.WithContext(c.Request.Context()).Create(&listingImage)
+		}
 	}
 	if input.ReservePrice > 0 {
 		updates["reserve_price"] = input.ReservePrice
@@ -213,6 +233,7 @@ func UpdateListing(c *gin.Context) {
 		return
 	}
 
+	config.DB.WithContext(c.Request.Context()).Preload("Images").First(&listing, listing.ID)
 	c.JSON(http.StatusOK, gin.H{"listing": listing})
 }
 
