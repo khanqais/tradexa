@@ -149,6 +149,106 @@ func (c *Client) WritePump() {
 	}
 }
 
+// ReadPumpForConversation runs in its own goroutine — continuously reads messages FROM the browser for a specific conversation
+func (c *Client) ReadPumpForConversation(conversationID string) {
+	defer func() {
+		if c.Hub != nil {
+			c.Hub.unregister <- c
+		} else {
+			Manager.UnregisterClient(c.UserID, c)
+		}
+		c.Conn.Close()
+	}()
+
+	c.Conn.SetReadLimit(maxMessage)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+
+	// when we receive a pong (response to our ping), reset the deadline
+	// this is how we know the client is still alive
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	//infinite loop -> keep reading until connection break
+	for {
+		_, raw, err := c.Conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+			) {
+				log.Printf("Websocket read error:%v", err)
+			}
+			break
+		}
+		var incoming struct {
+			Content string `json:"content"`
+		}
+		if err := json.Unmarshal(raw, &incoming); err != nil || incoming.Content == "" {
+			continue
+		}
+
+		conversationIDint := parseUnit(conversationID)
+		// Fetch conversation to get buyer and seller IDs
+		var conversation models.Conversation
+		if err := config.DB.First(&conversation, conversationIDint).Error; err != nil {
+			continue // skip if conversation not found
+		}
+
+		msg := models.Message{
+			ListingID:      conversation.ListingID,
+			ConversationID: conversationIDint,
+			SenderID:       c.UserID,
+			Content:        incoming.Content,
+		}
+		config.DB.Create(&msg)
+
+		// Notify the other participant in the conversation
+		var recipientID uint
+		if conversation.BuyerID == c.UserID {
+			recipientID = conversation.SellerID
+		} else {
+			recipientID = conversation.BuyerID
+		}
+
+		// Create notification for the recipient
+		notification := map[string]interface{}{
+			"type":           "new_message",
+			"conversation_id": conversationID,
+			"listing_id":     conversation.ListingID,
+			"sender_id":      c.UserID,
+			"sender_name":    c.Name,
+			"content":        incoming.Content,
+			"sent_at":        time.Now(),
+		}
+		notifBytes, _ := json.Marshal(notification)
+		Manager.NotifyUser(recipientID, notifBytes)
+
+		// push to hub's broadcast channel — hub will deliver to all clients in this conversation
+		type outMsg struct {
+			SenderID   uint      `json:"sender_id"`
+			SenderName string    `json:"sender_name"`
+			Content    string    `json:"content"`
+			ListingID  string    `json:"listing_id"`
+			SentAt     time.Time `json:"sent_at"`
+		}
+		out := outMsg{
+			SenderID:   c.UserID,
+			SenderName: c.Name,
+			Content:    incoming.Content,
+			ListingID:  fmt.Sprintf("%d", conversation.ListingID),
+			SentAt:     time.Now(),
+		}
+		// marshal struct back to JSON bytes
+		outBytes, _ := json.Marshal(out)
+		// push to hub's broadcast channel — hub will deliver to all clients
+		if c.Hub != nil {
+			c.Hub.broadcast <- outBytes
+		}
+	}
+}
+
 func parseUnit(s string) uint {
 	var n uint64
 	fmt.Sscanf(s, "%d", &n)

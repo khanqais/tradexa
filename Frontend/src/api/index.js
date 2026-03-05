@@ -26,6 +26,11 @@ export const login    = (data) => api.post('/login', data);
 export const register = (data) => api.post('/register', data);
 export const getMe    = ()     => api.get('/me');
 
+// Conversations
+export const getConversations = () => api.get('/conversations');
+export const createConversation = (data) => api.post('/conversations', data);
+export const getConversationMessages = (conversationId) => api.get(`/conversations/${conversationId}/messages`);
+
 // Listings
 export const getListings = (params) => api.get('/listings', { params });
 export const getListingById = (id)  => api.get(`/listings/${id}`);
@@ -49,6 +54,12 @@ export const getChatHistory = (listingId) => api.get(`/chat/${listingId}/history
 export const createChatSocket = (listingId) => {
   const token = localStorage.getItem('tradexa_token');
   return new WebSocket(`${WS_BASE}/ws/chat/${listingId}?token=${token}`);
+};
+
+// WebSocket factory for conversations
+export const createConversationSocket = (conversationId) => {
+  const token = localStorage.getItem('tradexa_token');
+  return new WebSocket(`${WS_BASE}/ws/conversation/${conversationId}?token=${token}`);
 };
 
 export const createNotificationSocket = () => {

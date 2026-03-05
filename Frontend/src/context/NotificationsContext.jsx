@@ -11,9 +11,9 @@ export function NotificationsProvider({ children }) {
     catch { return 0; }
   });
 
-  // Track which listingIds have unread messages so badge is meaningful
-  const [unreadListings, setUnreadListings] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tradexa_unread_listings') || '[]'); }
+  // Track which conversations have unread messages
+  const [unreadConversations, setUnreadConversations] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('tradexa_unread_conversations') || '[]'); }
     catch { return []; }
   });
 
@@ -22,31 +22,31 @@ export function NotificationsProvider({ children }) {
   }, [unreadCount]);
 
   useEffect(() => {
-    localStorage.setItem('tradexa_unread_listings', JSON.stringify(unreadListings));
-  }, [unreadListings]);
+    localStorage.setItem('tradexa_unread_conversations', JSON.stringify(unreadConversations));
+  }, [unreadConversations]);
 
-  const addUnread = useCallback((listingId, listingTitle) => {
+  const addUnread = useCallback((conversationId, listingId, listingTitle) => {
     setUnreadCount(n => n + 1);
-    setUnreadListings(prev => {
-      const existing = prev.find(l => String(l.id) === String(listingId));
+    setUnreadConversations(prev => {
+      const existing = prev.find(c => String(c.conversationId) === String(conversationId));
       if (existing) {
-        return prev.map(l => String(l.id) === String(listingId) ? { ...l, count: l.count + 1 } : l);
+        return prev.map(c => String(c.conversationId) === String(conversationId) ? { ...c, count: c.count + 1 } : c);
       }
-      return [...prev, { id: listingId, title: listingTitle || `Listing #${listingId}`, count: 1 }];
+      return [...prev, { conversationId, listingId, title: listingTitle || `Listing #${listingId}`, count: 1 }];
     });
   }, []);
 
   const clearUnread = useCallback(() => {
     setUnreadCount(0);
-    setUnreadListings([]);
+    setUnreadConversations([]);
   }, []);
 
-  const clearUnreadForListing = useCallback((listingId) => {
-    setUnreadListings(prev => {
-      const listing = prev.find(l => String(l.id) === String(listingId));
-      if (!listing) return prev;
-      setUnreadCount(c => Math.max(0, c - listing.count));
-      return prev.filter(l => String(l.id) !== String(listingId));
+  const clearUnreadForConversation = useCallback((conversationId) => {
+    setUnreadConversations(prev => {
+      const conversation = prev.find(c => String(c.conversationId) === String(conversationId));
+      if (!conversation) return prev;
+      setUnreadCount(c => Math.max(0, c - conversation.count));
+      return prev.filter(c => String(c.conversationId) !== String(conversationId));
     });
   }, []);
 
@@ -72,7 +72,7 @@ export function NotificationsProvider({ children }) {
         try {
           const data = JSON.parse(e.data);
           if (data.type === 'new_message') {
-            addUnread(data.listing_id, data.listing_title);
+            addUnread(data.conversation_id, data.listing_id, data.listing_title);
           }
         } catch (err) { /* ignore */ }
       };
@@ -93,7 +93,7 @@ export function NotificationsProvider({ children }) {
   }, [isAuthenticated, addUnread]);
 
   return (
-    <NotificationsContext.Provider value={{ unreadCount, unreadListings, addUnread, clearUnread, clearUnreadForListing }}>
+    <NotificationsContext.Provider value={{ unreadCount, unreadConversations, addUnread, clearUnread, clearUnreadForConversation }}>
       {children}
     </NotificationsContext.Provider>
   );

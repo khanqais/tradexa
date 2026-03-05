@@ -7,7 +7,7 @@ import './Navbar.css';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
-  const { unreadCount, unreadListings, clearUnread } = useNotifications();
+  const { unreadCount, unreadConversations, clearUnread } = useNotifications();
   const navigate = useNavigate();
   const [msgOpen, setMsgOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -57,7 +57,8 @@ export default function Navbar() {
             <>
               {/* Messages icon with badge */}
               <div className="navbar__msg-wrap" ref={dropdownRef}>
-                <button
+                <Link
+                  to="/conversations"
                   className="navbar__msg-btn"
                   onClick={handleMsgClick}
                   aria-label="Messages"
@@ -68,7 +69,7 @@ export default function Navbar() {
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
-                </button>
+                </Link>
 
                 {/* Dropdown */}
                 {msgOpen && (
@@ -93,22 +94,22 @@ export default function Navbar() {
                       </div>
                     </div>
 
-                    {unreadListings.length === 0 ? (
+                    {unreadConversations.length === 0 ? (
                       <div className="navbar__msg-empty">
                         <MessageSquare size={28} strokeWidth={1} />
                         <p>No new messages</p>
                       </div>
                     ) : (
                       <ul className="navbar__msg-list">
-                        {unreadListings.map(l => (
-                          <li key={l.id}>
+                        {unreadConversations.map(c => (
+                          <li key={c.conversationId}>
                             <Link
-                              to={`/listings/${l.id}`}
+                              to={`/conversations/${c.conversationId}`}
                               className="navbar__msg-item"
                               onClick={() => setMsgOpen(false)}
                             >
-                              <span className="navbar__msg-item-title">{l.title}</span>
-                              <span className="navbar__msg-item-count">{l.count} new</span>
+                              <span className="navbar__msg-item-title">{c.title}</span>
+                              <span className="navbar__msg-item-count">{c.count} new</span>
                             </Link>
                           </li>
                         ))}

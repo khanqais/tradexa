@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Zap, Package, AlertTriangle, MessageSquare, Send,
-  RefreshCw, Pencil, Trash2, Clock, ShieldCheck,
+  Zap, Package, AlertTriangle, MessageSquare,
+  Pencil, Trash2, Clock, ShieldCheck,
 } from 'lucide-react';
-import { getListingById, getChatHistory, createChatSocket, deleteListing } from '../api';
+import { getListingById, deleteListing, createConversation } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { useNotifications } from '../context/NotificationsContext';
 import { Spinner } from '../components/Spinner';
 import './ListingDetailPage.css';
 
@@ -31,59 +30,19 @@ function timeLeft(endDate) {
   return `${m}m ${s}s`;
 }
 
-function MessageBubble({ msg, currentUserId }) {
-  const isOwn = msg.sender_id === currentUserId || msg.sender?.id === currentUserId;
-  return (
-    <motion.div
-      className={`chat-bubble ${isOwn ? 'chat-bubble--own' : ''}`}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-    >
-      {!isOwn && (
-        <div className="chat-bubble__meta">
-          <span className="chat-bubble__avatar">
-            {(msg.sender?.name || msg.sender_name || '?')[0].toUpperCase()}
-          </span>
-          <span className="chat-bubble__name">
-            {msg.sender?.name || msg.sender_name}
-          </span>
-        </div>
-      )}
-      <div className="chat-bubble__body">
-        <p className="chat-bubble__text">{msg.content}</p>
-        <span className="chat-bubble__time">
-          {new Date(msg.created_at || msg.sent_at).toLocaleTimeString([], {
-            hour: '2-digit', minute: '2-digit',
-          })}
-        </span>
-      </div>
-    </motion.div>
-  );
-}
-
 export default function ListingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { addUnread, clearUnreadForListing } = useNotifications();
 
   const [listing, setListing]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  // Chat state
-  const [messages, setMessages]       = useState([]);
-  const [msgInput, setMsgInput]       = useState('');
-  const [wsStatus, setWsStatus]       = useState('idle'); // idle | connecting | open | closed | error
   const [chatLoading, setChatLoading] = useState(false);
 
   // Countdown timer
   const [countdown, setCountdown] = useState('');
-
-  const wsRef      = useRef(null);
-  const chatEndRef = useRef(null);
 
   // ── Fetch listing ──
   useEffect(() => {
@@ -111,81 +70,19 @@ export default function ListingDetailPage() {
     return () => clearInterval(interval);
   }, [listing]);
 
-  // ── Load chat history ──
-  useEffect(() => {
-    const loadHistory = async () => {
-      setChatLoading(true);
-      try {
-        const res = await getChatHistory(id);
-        setMessages(res.data.message || []);
-      } catch { /* chat not critical */ }
-      finally { setChatLoading(false); }
-    };
-    loadHistory();
-  }, [id]);
-
-  // ── WebSocket ──
-  const connectWs = useCallback(() => {
-    if (!isAuthenticated || wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    setWsStatus('connecting');
-    const ws = createChatSocket(id);
-    wsRef.current = ws;
-
-    ws.onopen  = () => setWsStatus('open');
-    ws.onerror = () => setWsStatus('error');
-    ws.onclose = () => setWsStatus('closed');
-
-    ws.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        const newMsg = {
-          sender_id:   data.sender_id,
-          sender_name: data.sender_name,
-          content:     data.content,
-          sent_at:     data.sent_at,
-          sender: { id: data.sender_id, name: data.sender_name },
-        };
-        setMessages(prev => [...prev, newMsg]);
-
-        // If we are on this page, the message is "read"
-        clearUnreadForListing(id);
-
-        // Notify if message is from someone else (not current user)
-        if (data.sender_id !== user?.id) {
-          addUnread(id, listing?.title);
-        }
-      } catch { /* ignore bad frames */ }
-    };
-  }, [id, isAuthenticated, user?.id, listing?.title, addUnread, clearUnreadForListing]);
-
-  const disconnectWs = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+  // ── Start / open conversation ──
+  const handleChat = async () => {
+    if (!isAuthenticated) { navigate('/auth'); return; }
+    setChatLoading(true);
+    try {
+      const res = await createConversation({ listing_id: listing.id, buyer_id: user.id });
+      navigate(`/conversations/${res.data.conversation.id}`);
+    } catch (err) {
+      console.error('Error starting conversation:', err);
+      alert('Failed to start conversation. Please try again.');
+    } finally {
+      setChatLoading(false);
     }
-  }, []);
-
-  // Auto-connect when user is authenticated and listing loaded
-  useEffect(() => {
-    if (listing && isAuthenticated) {
-      connectWs();
-      clearUnreadForListing(id);
-    }
-    return disconnectWs;
-  }, [listing, isAuthenticated, connectWs, disconnectWs, id, clearUnreadForListing]);
-
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const sendMessage = (e) => {
-    e.preventDefault();
-    const text = msgInput.trim();
-    if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    wsRef.current.send(JSON.stringify({ content: text }));
-    setMsgInput('');
   };
 
   // ── Delete listing ──
@@ -200,8 +97,6 @@ export default function ListingDetailPage() {
       setDeleting(false);
     }
   };
-
-  const isOwner = listing && user && listing.seller_id === user.id;
 
   // ── Render ──
   if (loading) {
@@ -225,6 +120,7 @@ export default function ListingDetailPage() {
   }
 
   const isAuction = listing.type === 'auction';
+  const isOwner   = listing && user && listing.seller_id === user.id;
 
   return (
     <div className="detail container">
@@ -312,26 +208,22 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            {/* CTA */}
-            {!listing.is_sold && (
+            {/* CTA — only shown to non-owners */}
+            {!listing.is_sold && !isOwner && (
               <div className="detail__cta">
-                {isAuction ? (
-                  <button
-                    className="btn btn--amber btn--lg detail__cta-btn"
-                    onClick={() => { if (!isAuthenticated) navigate('/auth'); else connectWs(); }}
-                  >
-                    <Zap size={16} strokeWidth={2.5} />
-                    Place Bid via Chat
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn--amber btn--lg detail__cta-btn"
-                    onClick={() => { if (!isAuthenticated) navigate('/auth'); else connectWs(); }}
-                  >
-                    <MessageSquare size={16} strokeWidth={2} />
-                    Contact Seller
-                  </button>
-                )}
+                <button
+                  className="btn btn--amber btn--lg detail__cta-btn"
+                  onClick={handleChat}
+                  disabled={chatLoading}
+                >
+                  {chatLoading ? (
+                    <Spinner size="sm" />
+                  ) : isAuction ? (
+                    <><Zap size={16} strokeWidth={2.5} /> Place Bid via Chat</>
+                  ) : (
+                    <><MessageSquare size={16} strokeWidth={2} /> Contact Seller</>
+                  )}
+                </button>
               </div>
             )}
 
@@ -388,101 +280,6 @@ export default function ListingDetailPage() {
                     {deleting ? <Spinner size="sm" /> : <><Trash2 size={13} strokeWidth={2} /> Delete</>}
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* ── Right: Chat ── */}
-        <motion.div
-          className="detail__chat"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="chat-panel">
-            {/* Chat header */}
-            <div className="chat-panel__header">
-              <div className="chat-panel__header-left">
-                <MessageSquare size={16} strokeWidth={1.75} className="chat-panel__header-icon" />
-                <h4 className="chat-panel__title">Live Chat</h4>
-                <div className="chat-panel__status">
-                  <span className={`chat-panel__status-dot chat-panel__status-dot--${wsStatus}`} />
-                  <span className="chat-panel__status-text">
-                    {wsStatus === 'open'       ? 'Connected'
-                    : wsStatus === 'connecting' ? 'Connecting…'
-                    : wsStatus === 'error'      ? 'Error'
-                    : wsStatus === 'closed'     ? 'Disconnected'
-                    : 'Not connected'}
-                  </span>
-                </div>
-              </div>
-              <span className="chat-panel__count">{messages.length} msgs</span>
-            </div>
-
-            {/* Messages */}
-            <div className="chat-panel__messages">
-              {chatLoading ? (
-                <div className="chat-panel__empty">
-                  <Spinner size="md" />
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="chat-panel__empty">
-                  <MessageSquare size={32} strokeWidth={1} className="chat-panel__empty-icon" />
-                  <p>No messages yet. Start the conversation!</p>
-                </div>
-              ) : (
-                <>
-                  {messages.map((msg, i) => (
-                    <MessageBubble
-                      key={msg.id || `ws-${i}`}
-                      msg={msg}
-                      currentUserId={user?.id}
-                    />
-                  ))}
-                  <div ref={chatEndRef} />
-                </>
-              )}
-            </div>
-
-            {/* Input */}
-            {isAuthenticated ? (
-              <form className="chat-panel__form" onSubmit={sendMessage}>
-                <input
-                  className="chat-panel__input"
-                  type="text"
-                  placeholder={
-                    wsStatus === 'open'
-                      ? 'Type a message…'
-                      : 'Connect to start chatting'
-                  }
-                  value={msgInput}
-                  onChange={e => setMsgInput(e.target.value)}
-                  disabled={wsStatus !== 'open'}
-                  maxLength={1000}
-                />
-                <button
-                  type="submit"
-                  className="chat-panel__send"
-                  disabled={wsStatus !== 'open' || !msgInput.trim()}
-                >
-                  <Send size={15} strokeWidth={2} />
-                </button>
-              </form>
-            ) : (
-              <div className="chat-panel__login-prompt">
-                <Link to="/auth" className="btn btn--primary btn--sm">
-                  Sign in to chat
-                </Link>
-              </div>
-            )}
-
-            {/* Reconnect if disconnected */}
-            {(wsStatus === 'closed' || wsStatus === 'error') && isAuthenticated && (
-              <div className="chat-panel__reconnect">
-                <button className="btn btn--ghost btn--sm" onClick={connectWs}>
-                  <RefreshCw size={13} strokeWidth={2} /> Reconnect
-                </button>
               </div>
             )}
           </div>

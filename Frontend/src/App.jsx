@@ -8,6 +8,8 @@ import AuthPage from './pages/AuthPage';
 import CreateListingPage from './pages/CreateListingPage';
 import MyListingsPage from './pages/MyListingsPage';
 import AuctionsPage from './pages/AuctionsPage';
+import ConversationsPage from './pages/ConversationsPage';
+import ConversationDetailPage from './pages/ConversationDetailPage';
 import BuyProductsPage from './pages/BuyProductsPage';
 import './App.css';
 
@@ -27,6 +29,8 @@ export default function App() {
                 <Route path="/my-listings"   element={<MyListingsPage />} />
                 <Route path="/auctions"      element={<AuctionsPage />} />
                 <Route path="/buy-products"  element={<BuyProductsPage />} />
+                <Route path="/conversations" element={<ConversationsPage />} />
+                <Route path="/conversations/:conversationId" element={<ConversationDetailPage />} />
                 {/* 404 */}
                 <Route path="*" element={
                   <div style={{

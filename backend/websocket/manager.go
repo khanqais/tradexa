@@ -3,43 +3,33 @@ package websocket
 import "sync"
 
 // HubManager is a global registry of all active chat rooms
-// it maps listingID → Hub, so each listing has exactly one Hub
-// think of it as a building directory — room 42 = Hub for listing 42
 type HubManager struct {
-	hubs        map[string]*Hub           // key = listingID as string e.g. "42"
-	userClients map[uint]map[*Client]bool // key = userID, value = set of active clients for that user
-	mu          sync.Mutex                // mutex prevents two goroutines creating the same hub simultaneously
+	conversationHubs map[string]*Hub           // key = conversationID as string e.g. "42"
+	userClients      map[uint]map[*Client]bool // key = userID, value = set of active clients for that user
+	mu               sync.Mutex                // mutex prevents two goroutines creating the same hub simultaneously
 }
 
 // Manager is a package-level singleton — one instance shared across the entire app
-// initialized once at startup, used by all WebSocket handlers
 var Manager = &HubManager{
-	hubs:        make(map[string]*Hub),
-	userClients: make(map[uint]map[*Client]bool),
+	conversationHubs: make(map[string]*Hub),
+	userClients:      make(map[uint]map[*Client]bool),
 }
 
-// GetOrCreate returns the existing Hub for a listing, or creates a new one
-// this is called every time a user opens a chat for a listing
-func (m *HubManager) GetOrCreate(listingID string) *Hub {
-	// Lock prevents race condition:
-	// if two users connect to listing 42 at the exact same millisecond,
-	// without the lock, both goroutines might check "does hub exist?" simultaneously,
-	// both see "no", and both create a new hub — now you have 2 hubs for listing 42
-	// with the lock, only one goroutine runs this block at a time
+// GetOrCreateConversation returns the existing Hub for a conversation, or creates a new one
+func (m *HubManager) GetOrCreateConversation(conversationID string) *Hub {
 	m.mu.Lock()
-	defer m.mu.Unlock() // unlock runs when this function exits, even on error
+	defer m.mu.Unlock()
 
-	// if hub already exists for this listing, return it
-	// all future users join the same hub = same chat room
-	if hub, exists := m.hubs[listingID]; exists {
+	// if hub already exists for this conversation, return it
+	if hub, exists := m.conversationHubs[conversationID]; exists {
 		return hub
 	}
 
-	// first user for this listing — create a brand new hub
+	// first user for this conversation — create a brand new hub
 	hub := NewHub()
 
 	// store it so future users get the same one
-	m.hubs[listingID] = hub
+	m.conversationHubs[conversationID] = hub
 
 	// start the hub's Run() loop in a separate goroutine
 	// it will now listen for register/unregister/broadcast events forever

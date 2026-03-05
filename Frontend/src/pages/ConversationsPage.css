@@ -1,0 +1,121 @@
+.conversations {
+  padding: 24px 0;
+}
+
+.conversations-header {
+  margin-bottom: 24px;
+}
+
+.conversations-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+
+.conversations-empty-text {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.conversations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+  border: 1px solid var(--border);
+}
+
+.conversation-item:hover {
+  background: var(--surface-hover);
+}
+
+.conversation-item__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.conversation-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-item__title {
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-item__participants {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.conversation-item__participant {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-item__listing {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+.conversation-item__listing img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.conversations-loading,
+.conversations-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.conversations-loading p,
+.conversations-error p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.conversations-error h3 {
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}

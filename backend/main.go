@@ -17,7 +17,7 @@ func main() {
 	}
 	config.ConnectDB()
 	config.ConnectCloudinary()
-	config.DB.AutoMigrate(&models.User{}, &models.Listing{}, &models.Message{})
+	config.DB.AutoMigrate(&models.User{}, &models.Listing{}, &models.Message{}, &models.Conversation{})
 	r := gin.Default()
 	routes.RegisterRoutes(r)
 	r.Run(":8080")
