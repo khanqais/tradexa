@@ -19,7 +19,6 @@ export default function Navbar() {
 
   const handleMsgClick = () => {
     setMsgOpen(prev => !prev);
-    if (!msgOpen) clearUnread();
   };
 
   // Close dropdown on outside click
@@ -76,12 +75,22 @@ export default function Navbar() {
                   <div className="navbar__msg-dropdown">
                     <div className="navbar__msg-dropdown-header">
                       <span className="navbar__msg-dropdown-title">Messages</span>
-                      <button
-                        className="navbar__msg-dropdown-close"
-                        onClick={() => setMsgOpen(false)}
-                      >
-                        <X size={14} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {unreadCount > 0 && (
+                          <button 
+                            className="navbar__msg-dropdown-clear"
+                            onClick={() => clearUnread()}
+                          >
+                            Clear all
+                          </button>
+                        )}
+                        <button
+                          className="navbar__msg-dropdown-close"
+                          onClick={() => setMsgOpen(false)}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
                     </div>
 
                     {unreadListings.length === 0 ? (

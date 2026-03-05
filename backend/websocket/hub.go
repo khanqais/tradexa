@@ -38,6 +38,14 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client) // remove from map
 				close(client.Send)        // closing the Send channel signals WritePump to stop
+				// remove from global registry too
+				Manager.UnregisterClient(client.UserID, client)
+			}
+		case client := <-h.unregister:
+			// check if client actually exists (might have already been removed)
+			if _, ok := h.clients[client]; ok {
+				delete(h.clients, client) // remove from map
+				close(client.Send)        // closing the Send channel signals WritePump to stop
 			}
 
 		// CASE 3 — a new message arrived, send it to everyone

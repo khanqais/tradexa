@@ -10,7 +10,7 @@ import (
 	ws "github.com/khanqais/tradexa/websocket"
 )
 
-var upgrader = websocket.Upgrader{
+var Upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
@@ -37,7 +37,7 @@ func ChatHandler(c *gin.Context) {
 	// upgrade HTTP → WebSocket
 	// after this line, normal HTTP request/response is gone
 	// communication is now full-duplex (both sides can send anytime)
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, err := Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "websocket upgrade failed",
@@ -55,6 +55,11 @@ func ChatHandler(c *gin.Context) {
 		Name:   userName,
 	}
 	// register this client with the hub
+	// hub.Run() will pick this up and add client to its map
+	hub.Register <- client
+
+	// Also register globally for notifications
+	ws.Manager.RegisterClient(userID, client)
 	// hub.Run() will pick this up and add client to its map
 	hub.Register <- client
 	// start WritePump in a goroutine — sends messages FROM hub TO this browser

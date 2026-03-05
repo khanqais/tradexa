@@ -66,7 +66,7 @@ export default function ListingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { addUnread } = useNotifications();
+  const { addUnread, clearUnreadForListing } = useNotifications();
 
   const [listing, setListing]   = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -148,13 +148,16 @@ export default function ListingDetailPage() {
         };
         setMessages(prev => [...prev, newMsg]);
 
+        // If we are on this page, the message is "read"
+        clearUnreadForListing(id);
+
         // Notify if message is from someone else (not current user)
         if (data.sender_id !== user?.id) {
           addUnread(id, listing?.title);
         }
       } catch { /* ignore bad frames */ }
     };
-  }, [id, isAuthenticated, user?.id, listing?.title, addUnread]);
+  }, [id, isAuthenticated, user?.id, listing?.title, addUnread, clearUnreadForListing]);
 
   const disconnectWs = useCallback(() => {
     if (wsRef.current) {
@@ -165,9 +168,12 @@ export default function ListingDetailPage() {
 
   // Auto-connect when user is authenticated and listing loaded
   useEffect(() => {
-    if (listing && isAuthenticated) connectWs();
+    if (listing && isAuthenticated) {
+      connectWs();
+      clearUnreadForListing(id);
+    }
     return disconnectWs;
-  }, [listing, isAuthenticated, connectWs, disconnectWs]);
+  }, [listing, isAuthenticated, connectWs, disconnectWs, id, clearUnreadForListing]);
 
   // Auto-scroll chat
   useEffect(() => {

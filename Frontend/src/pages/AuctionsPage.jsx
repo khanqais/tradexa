@@ -5,7 +5,7 @@ import { api } from '../api';
 import ListingCard from '../components/ListingCard';
 import { Spinner } from '../components/Spinner';
 import '../components/ListingCard.css';
-// shared grid styles come from ListingCard.css
+import './ListingsPage.css';
 
 export default function AuctionsPage() {
   const [listings, setListings] = useState([]);

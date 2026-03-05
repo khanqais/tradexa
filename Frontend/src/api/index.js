@@ -51,5 +51,12 @@ export const createChatSocket = (listingId) => {
   return new WebSocket(`${WS_BASE}/ws/chat/${listingId}?token=${token}`);
 };
 
+export const createNotificationSocket = () => {
+  const token = localStorage.getItem('tradexa_token');
+  if (!token) return null;
+  return new WebSocket(`${WS_BASE}/ws/notifications?token=${token}`);
+};
+
+
 
 export default api;

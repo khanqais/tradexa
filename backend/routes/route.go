@@ -28,6 +28,7 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.DELETE("/listings/:id", handlers.DeleteListing)
 			protected.POST("/upload", handlers.UploadImage)
 			protected.GET("/ws/chat/:listingId", handlers.ChatHandler)
+			protected.GET("/ws/notifications", handlers.NotificationHandler)
 
 		}
 	}

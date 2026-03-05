@@ -96,7 +96,7 @@ export default function HomePage() {
           </motion.h1>
 
           <motion.p className="home__hero-subtitle" variants={heroItem}>
-            Bid on live auctions or buy instantly. From vintage electronics to rare art —
+            Bid on live auctions or buy instantly. From vintage electronics to rare art 
             every item has a story waiting to continue.
           </motion.p>
 

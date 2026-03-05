@@ -1,8 +1,11 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { createNotificationSocket } from '../api';
+import { useAuth } from './AuthContext';
 
 const NotificationsContext = createContext(null);
 
 export function NotificationsProvider({ children }) {
+  const { isAuthenticated } = useAuth();
   const [unreadCount, setUnreadCount] = useState(() => {
     try { return parseInt(localStorage.getItem('tradexa_unread') || '0', 10); }
     catch { return 0; }
@@ -25,9 +28,9 @@ export function NotificationsProvider({ children }) {
   const addUnread = useCallback((listingId, listingTitle) => {
     setUnreadCount(n => n + 1);
     setUnreadListings(prev => {
-      const existing = prev.find(l => l.id === listingId);
+      const existing = prev.find(l => String(l.id) === String(listingId));
       if (existing) {
-        return prev.map(l => l.id === listingId ? { ...l, count: l.count + 1 } : l);
+        return prev.map(l => String(l.id) === String(listingId) ? { ...l, count: l.count + 1 } : l);
       }
       return [...prev, { id: listingId, title: listingTitle || `Listing #${listingId}`, count: 1 }];
     });
@@ -38,8 +41,59 @@ export function NotificationsProvider({ children }) {
     setUnreadListings([]);
   }, []);
 
+  const clearUnreadForListing = useCallback((listingId) => {
+    setUnreadListings(prev => {
+      const listing = prev.find(l => String(l.id) === String(listingId));
+      if (!listing) return prev;
+      setUnreadCount(c => Math.max(0, c - listing.count));
+      return prev.filter(l => String(l.id) !== String(listingId));
+    });
+  }, []);
+
+  // Global notification socket
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      return;
+    }
+
+    let socket;
+    const connect = () => {
+      socket = createNotificationSocket();
+      if (!socket) return;
+      wsRef.current = socket;
+
+      socket.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'new_message') {
+            addUnread(data.listing_id, data.listing_title);
+          }
+        } catch (err) { /* ignore */ }
+      };
+
+      socket.onclose = () => {
+        // Reconnect after 5s if still authenticated
+        setTimeout(() => { if (isAuthenticated) connect(); }, 5000);
+      };
+    };
+
+    connect();
+    return () => { 
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [isAuthenticated, addUnread]);
+
   return (
-    <NotificationsContext.Provider value={{ unreadCount, unreadListings, addUnread, clearUnread }}>
+    <NotificationsContext.Provider value={{ unreadCount, unreadListings, addUnread, clearUnread, clearUnreadForListing }}>
       {children}
     </NotificationsContext.Provider>
   );

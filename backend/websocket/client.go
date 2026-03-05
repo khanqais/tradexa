@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+
 	"github.com/gorilla/websocket"
 	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/models"
@@ -29,7 +30,11 @@ type Client struct {
 // one ReadPump per client, for the entire lifetime of their connection
 func (c *Client) ReadPump(listingID string) {
 	defer func() {
-		c.Hub.unregister <- c
+		if c.Hub != nil {
+			c.Hub.unregister <- c
+		} else {
+			Manager.UnregisterClient(c.UserID, c)
+		}
 		c.Conn.Close()
 	}()
 
@@ -69,6 +74,25 @@ func (c *Client) ReadPump(listingID string) {
 		}
 		config.DB.Create(&msg)
 
+		// Fetch listing to get seller ID for notification
+		var listing models.Listing
+		if err := config.DB.Select("seller_id, title").First(&listing, listingIDint).Error; err == nil {
+			// Notify seller if they are not the sender
+			if listing.SellerID != c.UserID {
+				notification := map[string]interface{}{
+					"type":          "new_message",
+					"listing_id":    listingID,
+					"listing_title": listing.Title,
+					"sender_id":     c.UserID,
+					"sender_name":   c.Name,
+					"content":       incoming.Content,
+					"sent_at":       time.Now(),
+				}
+				notifBytes, _ := json.Marshal(notification)
+				Manager.NotifyUser(listing.SellerID, notifBytes)
+			}
+		}
+
 		// push to hub's broadcast channel — hub will deliver to all clients
 		type outMsg struct {
 			SenderID   uint      `json:"sender_id"`
@@ -87,8 +111,9 @@ func (c *Client) ReadPump(listingID string) {
 		// marshal struct back to JSON bytes
 		outBytes, _ := json.Marshal(out)
 		// push to hub's broadcast channel — hub will deliver to all clients
-		c.Hub.broadcast <- outBytes
-
+		if c.Hub != nil {
+			c.Hub.broadcast <- outBytes
+		}
 	}
 }
 

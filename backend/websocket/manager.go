@@ -6,14 +6,16 @@ import "sync"
 // it maps listingID → Hub, so each listing has exactly one Hub
 // think of it as a building directory — room 42 = Hub for listing 42
 type HubManager struct {
-	hubs map[string]*Hub // key = listingID as string e.g. "42"
-	mu   sync.Mutex      // mutex prevents two goroutines creating the same hub simultaneously
+	hubs        map[string]*Hub           // key = listingID as string e.g. "42"
+	userClients map[uint]map[*Client]bool // key = userID, value = set of active clients for that user
+	mu          sync.Mutex                // mutex prevents two goroutines creating the same hub simultaneously
 }
 
 // Manager is a package-level singleton — one instance shared across the entire app
 // initialized once at startup, used by all WebSocket handlers
 var Manager = &HubManager{
-	hubs: make(map[string]*Hub),
+	hubs:        make(map[string]*Hub),
+	userClients: make(map[uint]map[*Client]bool),
 }
 
 // GetOrCreate returns the existing Hub for a listing, or creates a new one
@@ -44,4 +46,42 @@ func (m *HubManager) GetOrCreate(listingID string) *Hub {
 	go hub.Run()
 
 	return hub
+}
+
+// RegisterClient adds a client to the global user registry
+func (m *HubManager) RegisterClient(userID uint, client *Client) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.userClients[userID] == nil {
+		m.userClients[userID] = make(map[*Client]bool)
+	}
+	m.userClients[userID][client] = true
+}
+
+// UnregisterClient removes a client from the global user registry
+func (m *HubManager) UnregisterClient(userID uint, client *Client) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if clients, ok := m.userClients[userID]; ok {
+		delete(clients, client)
+		if len(clients) == 0 {
+			delete(m.userClients, userID)
+		}
+	}
+}
+
+// NotifyUser sends a message to all active clients of a user
+func (m *HubManager) NotifyUser(userID uint, message []byte) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if clients, ok := m.userClients[userID]; ok {
+		for client := range clients {
+			select {
+			case client.Send <- message:
+			default:
+				// if send fails, we'll let the hub's Run loop or WritePump handle cleanup if needed
+				// but here we just skip to avoid blocking
+			}
+		}
+	}
 }
