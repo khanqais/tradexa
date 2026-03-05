@@ -10,7 +10,7 @@ export default function PageLoader() {
   return (
     <div className="page-loader">
       <div className="page-loader__inner">
-        <div className="page-loader__logo">T</div>
+       
         <Spinner size="lg" />
       </div>
     </div>

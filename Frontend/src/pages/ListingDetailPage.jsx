@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import {
+  Zap, Package, AlertTriangle, MessageSquare, Send,
+  RefreshCw, Pencil, Trash2, Clock, ShieldCheck,
+} from 'lucide-react';
 import { getListingById, getChatHistory, createChatSocket, deleteListing } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationsContext';
 import { Spinner } from '../components/Spinner';
 import './ListingDetailPage.css';
 
@@ -61,6 +66,7 @@ export default function ListingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { addUnread } = useNotifications();
 
   const [listing, setListing]   = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -68,15 +74,15 @@ export default function ListingDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Chat state
-  const [messages, setMessages]   = useState([]);
-  const [msgInput, setMsgInput]   = useState('');
-  const [wsStatus, setWsStatus]   = useState('idle'); // idle | connecting | open | closed | error
+  const [messages, setMessages]       = useState([]);
+  const [msgInput, setMsgInput]       = useState('');
+  const [wsStatus, setWsStatus]       = useState('idle'); // idle | connecting | open | closed | error
   const [chatLoading, setChatLoading] = useState(false);
 
   // Countdown timer
   const [countdown, setCountdown] = useState('');
 
-  const wsRef     = useRef(null);
+  const wsRef      = useRef(null);
   const chatEndRef = useRef(null);
 
   // ── Fetch listing ──
@@ -133,17 +139,22 @@ export default function ListingDetailPage() {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        setMessages(prev => [...prev, {
+        const newMsg = {
           sender_id:   data.sender_id,
           sender_name: data.sender_name,
           content:     data.content,
           sent_at:     data.sent_at,
-          // build a fake sender object so MessageBubble can display name
           sender: { id: data.sender_id, name: data.sender_name },
-        }]);
+        };
+        setMessages(prev => [...prev, newMsg]);
+
+        // Notify if message is from someone else (not current user)
+        if (data.sender_id !== user?.id) {
+          addUnread(id, listing?.title);
+        }
       } catch { /* ignore bad frames */ }
     };
-  }, [id, isAuthenticated]);
+  }, [id, isAuthenticated, user?.id, listing?.title, addUnread]);
 
   const disconnectWs = useCallback(() => {
     if (wsRef.current) {
@@ -199,7 +210,7 @@ export default function ListingDetailPage() {
   if (error || !listing) {
     return (
       <div className="detail-error container">
-        <span className="detail-error__icon">⚠</span>
+        <AlertTriangle size={32} strokeWidth={1.5} className="detail-error__icon" />
         <h3>Listing unavailable</h3>
         <p>{error}</p>
         <Link to="/" className="btn btn--ghost">← Back to market</Link>
@@ -240,15 +251,19 @@ export default function ListingDetailPage() {
               <img src={listing.image_url} alt={listing.title} className="detail__img" />
             ) : (
               <div className="detail__img-placeholder">
-                <span>◈</span>
+                <Package size={48} strokeWidth={1} />
               </div>
             )}
             {/* Type badge */}
             <div className="detail__img-badge">
               {isAuction ? (
-                <span className="tag tag--auction">⚡ Live Auction</span>
+                <span className="tag tag--auction">
+                  <Zap size={11} strokeWidth={2.5} /> Live Auction
+                </span>
               ) : (
-                <span className="tag tag--fixed">Buy Now</span>
+                <span className="tag tag--fixed">
+                  <ShieldCheck size={11} strokeWidth={2} /> Buy Now
+                </span>
               )}
               {listing.is_sold && <span className="tag tag--sold">Sold</span>}
             </div>
@@ -265,6 +280,7 @@ export default function ListingDetailPage() {
             {isAuction && countdown && !listing.is_sold && (
               <div className="detail__countdown">
                 <span className="live-dot" />
+                <Clock size={13} strokeWidth={2} />
                 <span className="detail__countdown-label">Time remaining</span>
                 <span className="detail__countdown-value price-display">{countdown}</span>
               </div>
@@ -296,21 +312,17 @@ export default function ListingDetailPage() {
                 {isAuction ? (
                   <button
                     className="btn btn--amber btn--lg detail__cta-btn"
-                    onClick={() => {
-                      if (!isAuthenticated) navigate('/auth');
-                      else connectWs();
-                    }}
+                    onClick={() => { if (!isAuthenticated) navigate('/auth'); else connectWs(); }}
                   >
-                    ⚡ Place Bid via Chat
+                    <Zap size={16} strokeWidth={2.5} />
+                    Place Bid via Chat
                   </button>
                 ) : (
                   <button
                     className="btn btn--amber btn--lg detail__cta-btn"
-                    onClick={() => {
-                      if (!isAuthenticated) navigate('/auth');
-                      else connectWs();
-                    }}
+                    onClick={() => { if (!isAuthenticated) navigate('/auth'); else connectWs(); }}
                   >
+                    <MessageSquare size={16} strokeWidth={2} />
                     Contact Seller
                   </button>
                 )}
@@ -360,14 +372,14 @@ export default function ListingDetailPage() {
                 <div className="divider" />
                 <div className="detail__owner-actions-row">
                   <Link to={`/listings/${id}/edit`} className="btn btn--ghost btn--sm">
-                    ✎ Edit Listing
+                    <Pencil size={13} strokeWidth={2} /> Edit Listing
                   </Link>
                   <button
                     className="btn btn--danger btn--sm"
                     onClick={handleDelete}
                     disabled={deleting}
                   >
-                    {deleting ? <Spinner size="sm" /> : '✕ Delete'}
+                    {deleting ? <Spinner size="sm" /> : <><Trash2 size={13} strokeWidth={2} /> Delete</>}
                   </button>
                 </div>
               </div>
@@ -386,6 +398,7 @@ export default function ListingDetailPage() {
             {/* Chat header */}
             <div className="chat-panel__header">
               <div className="chat-panel__header-left">
+                <MessageSquare size={16} strokeWidth={1.75} className="chat-panel__header-icon" />
                 <h4 className="chat-panel__title">Live Chat</h4>
                 <div className="chat-panel__status">
                   <span className={`chat-panel__status-dot chat-panel__status-dot--${wsStatus}`} />
@@ -398,7 +411,7 @@ export default function ListingDetailPage() {
                   </span>
                 </div>
               </div>
-              <span className="chat-panel__count">{messages.length} messages</span>
+              <span className="chat-panel__count">{messages.length} msgs</span>
             </div>
 
             {/* Messages */}
@@ -409,7 +422,7 @@ export default function ListingDetailPage() {
                 </div>
               ) : messages.length === 0 ? (
                 <div className="chat-panel__empty">
-                  <span className="chat-panel__empty-icon">💬</span>
+                  <MessageSquare size={32} strokeWidth={1} className="chat-panel__empty-icon" />
                   <p>No messages yet. Start the conversation!</p>
                 </div>
               ) : (
@@ -447,7 +460,7 @@ export default function ListingDetailPage() {
                   className="chat-panel__send"
                   disabled={wsStatus !== 'open' || !msgInput.trim()}
                 >
-                  ↑
+                  <Send size={15} strokeWidth={2} />
                 </button>
               </form>
             ) : (
@@ -462,7 +475,7 @@ export default function ListingDetailPage() {
             {(wsStatus === 'closed' || wsStatus === 'error') && isAuthenticated && (
               <div className="chat-panel__reconnect">
                 <button className="btn btn--ghost btn--sm" onClick={connectWs}>
-                  ↻ Reconnect
+                  <RefreshCw size={13} strokeWidth={2} /> Reconnect
                 </button>
               </div>
             )}

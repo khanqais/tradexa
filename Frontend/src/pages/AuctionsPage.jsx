@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { api } from '../api';
 import ListingCard from '../components/ListingCard';
-import Spinner from '../components/Spinner';
+import { Spinner } from '../components/Spinner';
 import '../components/ListingCard.css';
-import './ListingsPage.css';
+// shared grid styles come from ListingCard.css
 
 export default function AuctionsPage() {
   const [listings, setListings] = useState([]);
