@@ -1,0 +1,194 @@
+/* ── Shared Listings Page Styles (Auctions + Buy Products) ── */
+
+.page {
+  min-height: calc(100vh - 64px);
+}
+
+/* ── Hero ── */
+.hero {
+  padding: var(--sp-16) 0 var(--sp-12);
+  background: linear-gradient(180deg, rgba(46, 107, 96, 0.12) 0%, transparent 100%);
+  border-bottom: 1px solid var(--ink-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hero__content {
+  max-width: 640px;
+  padding: 0 var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+}
+
+.hero__title {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.hero__subtitle {
+  font-size: 1.0625rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+/* ── Stats Strip ── */
+.stats-strip {
+  border-bottom: 1px solid var(--ink-border);
+  background: var(--ink-soft);
+  padding: var(--sp-5) 0;
+}
+
+.stats-strip__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-12);
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat__value {
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--amber-hot);
+  letter-spacing: 0.02em;
+}
+
+.stat__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ── Filters ── */
+.filters {
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--ink-border);
+  background: var(--ink-soft);
+}
+
+.filters__content {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* ── Listings Grid ── */
+.listings-grid {
+  padding: var(--sp-10) 0 var(--sp-16);
+}
+
+.listings-grid__content {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-6);
+}
+
+/* ── Empty / Error States ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  padding: var(--sp-20) var(--sp-6);
+  text-align: center;
+}
+
+.empty-state h3 {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  color: var(--text-secondary);
+}
+
+.empty-state p {
+  color: var(--text-tertiary);
+  max-width: 380px;
+  line-height: 1.6;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-10) var(--sp-6);
+  text-align: center;
+}
+
+.error p {
+  color: #c47a7a;
+}
+
+/* ── Input ── */
+.input {
+  width: 100%;
+  background: var(--ink-raised);
+  border: 1px solid var(--ink-border);
+  border-radius: var(--r-md);
+  padding: 10px 16px;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  transition: border-color var(--t-base) var(--ease-out),
+              box-shadow var(--t-base) var(--ease-out);
+}
+
+.input::placeholder { color: var(--text-tertiary); }
+.input:focus {
+  border-color: var(--verd);
+  box-shadow: 0 0 0 3px rgba(46, 107, 96, 0.2);
+}
+
+.input--large {
+  padding: 14px 20px;
+  font-size: 1rem;
+  width: min(500px, 90vw);
+}
+
+/* ── Select ── */
+.select {
+  background: var(--ink-raised);
+  border: 1px solid var(--ink-border);
+  border-radius: var(--r-md);
+  padding: 9px 14px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: border-color var(--t-base) var(--ease-out);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6862' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+}
+
+.select:focus { border-color: var(--verd); outline: none; box-shadow: 0 0 0 3px rgba(46,107,96,0.2); }
+.select:hover { border-color: var(--ink-muted); }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .hero { padding: var(--sp-12) 0 var(--sp-8); }
+  .hero__title { font-size: 2rem; }
+  .stats-strip__content { gap: var(--sp-8); }
+  .listings-grid__content { grid-template-columns: 1fr; }
+}
