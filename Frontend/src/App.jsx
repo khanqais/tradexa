@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationsProvider } from './context/NotificationsContext';
 import Navbar from './components/Navbar';
@@ -12,6 +12,34 @@ import ConversationsPage from './pages/ConversationsPage';
 import ConversationDetailPage from './pages/ConversationDetailPage';
 import BuyProductsPage from './pages/BuyProductsPage';
 import './App.css';
+
+function Footer() {
+  const location = useLocation();
+  // Hide footer on conversation detail pages
+  if (location.pathname.startsWith('/conversations/')) return null;
+  return (
+    <footer className="app__footer">
+      <div className="container">
+        <div className="app__footer-inner">
+          <div className="app__footer-logo">
+            <span className="app__footer-logo-mark">T</span>
+            <span className="app__footer-logo-text">RADEXA</span>
+          </div>
+          <p className="app__footer-copy">
+            © {new Date().getFullYear()} Tradexa. All rights reserved.
+          </p>
+          <div className="app__footer-links">
+            <a href="/" className="app__footer-link">Market</a>
+            <a href="/auctions" className="app__footer-link">Auctions</a>
+            <a href="/buy-products" className="app__footer-link">Buy Products</a>
+            <a href="/auth" className="app__footer-link">Sign In</a>
+            <a href="/create" className="app__footer-link">List Item</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
 
 export default function App() {
   return (
@@ -50,28 +78,7 @@ export default function App() {
                 } />
               </Routes>
             </main>
-
-            {/* Footer */}
-            <footer className="app__footer">
-              <div className="container">
-                <div className="app__footer-inner">
-                  <div className="app__footer-logo">
-                    <span className="app__footer-logo-mark">T</span>
-                    <span className="app__footer-logo-text">RADEXA</span>
-                  </div>
-                  <p className="app__footer-copy">
-                    © {new Date().getFullYear()} Tradexa. All rights reserved.
-                  </p>
-                  <div className="app__footer-links">
-                    <a href="/" className="app__footer-link">Market</a>
-                    <a href="/auctions" className="app__footer-link">Auctions</a>
-                    <a href="/buy-products" className="app__footer-link">Buy Products</a>
-                    <a href="/auth" className="app__footer-link">Sign In</a>
-                    <a href="/create" className="app__footer-link">List Item</a>
-                  </div>
-                </div>
-              </div>
-            </footer>
+            <Footer />
           </div>
         </BrowserRouter>
       </NotificationsProvider>
