@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"os"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/khanqais/tradexa/config"
@@ -19,6 +21,23 @@ func main() {
 	config.ConnectCloudinary()
 	config.DB.AutoMigrate(&models.User{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{})
 	r := gin.Default()
+
+	// Setup CORS before routes
+	devOrigins := []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	prodOrigin := os.Getenv("FRONTEND_URL") // Set in .env for production
+	if prodOrigin != "" {
+		devOrigins = append(devOrigins, prodOrigin)
+	}
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     devOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "X-Requested-With"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           3600,
+	}))
+
 	routes.RegisterRoutes(r)
 	r.Run(":8080")
 }

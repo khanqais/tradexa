@@ -34,7 +34,8 @@ func ConnectDB() {
 		}
 	}
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	var err error
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger:      logger.Default.LogMode(logger.Info),
 		PrepareStmt: false,
 	})
@@ -42,5 +43,4 @@ func ConnectDB() {
 		log.Fatal("failed to connect to DB")
 	}
 	log.Println("DB connected ")
-	DB = db
 }

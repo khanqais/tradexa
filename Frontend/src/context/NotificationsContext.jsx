@@ -4,8 +4,18 @@ import { useAuth } from './AuthContext';
 
 const NotificationsContext = createContext(null);
 
+function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export function NotificationsProvider({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(() => {
     try { return parseInt(localStorage.getItem('tradexa_unread') || '0', 10); }
     catch { return 0; }
@@ -78,19 +88,25 @@ export function NotificationsProvider({ children }) {
       };
 
       socket.onclose = () => {
-        // Reconnect after 5s if still authenticated
+        // Don't reconnect with an expired token — auto-logout instead
+        const currentToken = localStorage.getItem('tradexa_token');
+        if (isTokenExpired(currentToken)) {
+          logout();
+          return;
+        }
+        // Reconnect after 5s if token is still valid
         setTimeout(() => { if (isAuthenticated) connect(); }, 5000);
       };
     };
 
     connect();
-    return () => { 
+    return () => {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
     };
-  }, [isAuthenticated, addUnread]);
+  }, [isAuthenticated, addUnread, logout]);
 
   return (
     <NotificationsContext.Provider value={{ unreadCount, unreadConversations, addUnread, clearUnread, clearUnreadForConversation }}>

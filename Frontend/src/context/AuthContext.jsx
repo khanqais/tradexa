@@ -1,11 +1,31 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
 import { login as apiLogin, register as apiRegister } from '../api';
 
 const AuthContext = createContext(null);
 
+// Decode JWT payload and check if it's expired
+function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser]   = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem('tradexa_token'));
+  const [token, setToken] = useState(() => {
+    const t = localStorage.getItem('tradexa_token');
+    if (isTokenExpired(t)) {
+      localStorage.removeItem('tradexa_token');
+      localStorage.removeItem('tradexa_user');
+      return null;
+    }
+    return t;
+  });
   const [loading, setLoading] = useState(true);
 
   // On mount, restore user from localStorage
@@ -39,7 +59,7 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  const isAuthenticated = !!token && !!user;
+  const isAuthenticated = !!token && !!user && !isTokenExpired(token);
 
   return (
     <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout }}>
