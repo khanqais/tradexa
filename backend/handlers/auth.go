@@ -31,6 +31,11 @@ type LoginInput struct {
 	Password string `json:"password" binding:"required,min=6"`
 }
 
+type ChangePassowrdInput struct {
+	NewPassword string `json:"newpassowrd" binding:"required,min=6"`
+	OldPassWord string `json:"oldpassowrd" binding:"required,min=6"`
+}
+
 func Register(c *gin.Context) {
 	var input RegisterInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -129,6 +134,38 @@ func Login(c *gin.Context) {
 		},
 	})
 
+}
+func ChangePassowrd(c *gin.Context) {
+	var input ChangePassowrdInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	userID, _ := c.Get("user_id")
+	var user models.User
+	config.DB.First(&user, userID)
+
+	err := bcrypt.CompareHashAndPassword(
+		[]byte(user.Password),
+		[]byte(input.OldPassWord),
+	)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "incorrect passowrd",
+		})
+		return
+	}
+	hashed, _ := bcrypt.GenerateFromPassword(
+		[]byte(input.NewPassword),
+		bcrypt.DefaultCost,
+	)
+	user.Password = string(hashed)
+	config.DB.Save(&user)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "password change",
+	})
 }
 
 func GetMe(c *gin.Context) {

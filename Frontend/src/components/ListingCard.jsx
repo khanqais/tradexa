@@ -1,11 +1,11 @@
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import './ListingCard.css';
+import { Link } from "react-router-dom";
+
+import "./ListingCard.css";
 
 function formatPrice(price) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(price);
@@ -14,7 +14,7 @@ function formatPrice(price) {
 function timeLeft(endDate) {
   if (!endDate) return null;
   const diff = new Date(endDate) - Date.now();
-  if (diff <= 0) return 'Ended';
+  if (diff <= 0) return "Ended";
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   if (h > 24) return `${Math.floor(h / 24)}d left`;
@@ -23,16 +23,24 @@ function timeLeft(endDate) {
 }
 
 export default function ListingCard({ listing, index = 0 }) {
-  const isAuction = listing.type === 'auction';
+  const isAuction = listing.type === "auction";
   const countdown = isAuction ? timeLeft(listing.auction_ends_at) : null;
-  const isUrgent  = isAuction && countdown && countdown.includes('m left') && !countdown.includes('h');
+  const isUrgent =
+    isAuction &&
+    countdown &&
+    countdown.includes("m left") &&
+    !countdown.includes("h");
 
   return (
     <motion.div
-      className={`listing-card ${isAuction ? 'listing-card--auction' : ''}`}
+      className={`listing-card ${isAuction ? "listing-card--auction" : ""}`}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
+      transition={{
+        duration: 0.4,
+        delay: index * 0.06,
+        ease: [0.16, 1, 0.3, 1],
+      }}
       whileHover={{ y: -4 }}
     >
       <Link to={`/listings/${listing.id}`} className="listing-card__link">
@@ -63,7 +71,9 @@ export default function ListingCard({ listing, index = 0 }) {
 
           {/* Auction countdown */}
           {isAuction && countdown && !listing.is_sold && (
-            <div className={`listing-card__countdown ${isUrgent ? 'listing-card__countdown--urgent' : ''}`}>
+            <div
+              className={`listing-card__countdown ${isUrgent ? "listing-card__countdown--urgent" : ""}`}
+            >
               <span className="live-dot" />
               <span className="listing-card__countdown-text">{countdown}</span>
             </div>
@@ -82,7 +92,7 @@ export default function ListingCard({ listing, index = 0 }) {
           <div className="listing-card__footer">
             <div>
               <div className="listing-card__price-label">
-                {isAuction ? 'Starting bid' : 'Price'}
+                {isAuction ? "Starting bid" : "Price"}
               </div>
               <div className="price-display listing-card__price">
                 {formatPrice(listing.price)}
@@ -93,7 +103,9 @@ export default function ListingCard({ listing, index = 0 }) {
                 <span className="listing-card__seller-avatar">
                   {listing.seller.name?.[0]?.toUpperCase()}
                 </span>
-                <span className="listing-card__seller-name">{listing.seller.name}</span>
+                <span className="listing-card__seller-name">
+                  {listing.seller.name}
+                </span>
               </div>
             )}
           </div>

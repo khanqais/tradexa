@@ -1,13 +1,20 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { createNotificationSocket } from '../api';
-import { useAuth } from './AuthContext';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
+import { createNotificationSocket } from "../api";
+import { useAuth } from "./AuthContext";
 
 const NotificationsContext = createContext(null);
 
 function isTokenExpired(token) {
   if (!token) return true;
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(token.split(".")[1]));
     return payload.exp * 1000 < Date.now();
   } catch {
     return true;
@@ -17,32 +24,57 @@ function isTokenExpired(token) {
 export function NotificationsProvider({ children }) {
   const { isAuthenticated, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(() => {
-    try { return parseInt(localStorage.getItem('tradexa_unread') || '0', 10); }
-    catch { return 0; }
+    try {
+      return parseInt(localStorage.getItem("tradexa_unread") || "0", 10);
+    } catch {
+      return 0;
+    }
   });
 
   // Track which conversations have unread messages
   const [unreadConversations, setUnreadConversations] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tradexa_unread_conversations') || '[]'); }
-    catch { return []; }
+    try {
+      return JSON.parse(
+        localStorage.getItem("tradexa_unread_conversations") || "[]",
+      );
+    } catch {
+      return [];
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('tradexa_unread', String(unreadCount));
+    localStorage.setItem("tradexa_unread", String(unreadCount));
   }, [unreadCount]);
 
   useEffect(() => {
-    localStorage.setItem('tradexa_unread_conversations', JSON.stringify(unreadConversations));
+    localStorage.setItem(
+      "tradexa_unread_conversations",
+      JSON.stringify(unreadConversations),
+    );
   }, [unreadConversations]);
 
   const addUnread = useCallback((conversationId, listingId, listingTitle) => {
-    setUnreadCount(n => n + 1);
-    setUnreadConversations(prev => {
-      const existing = prev.find(c => String(c.conversationId) === String(conversationId));
+    setUnreadCount((n) => n + 1);
+    setUnreadConversations((prev) => {
+      const existing = prev.find(
+        (c) => String(c.conversationId) === String(conversationId),
+      );
       if (existing) {
-        return prev.map(c => String(c.conversationId) === String(conversationId) ? { ...c, count: c.count + 1 } : c);
+        return prev.map((c) =>
+          String(c.conversationId) === String(conversationId)
+            ? { ...c, count: c.count + 1 }
+            : c,
+        );
       }
-      return [...prev, { conversationId, listingId, title: listingTitle || `Listing #${listingId}`, count: 1 }];
+      return [
+        ...prev,
+        {
+          conversationId,
+          listingId,
+          title: listingTitle || `Listing #${listingId}`,
+          count: 1,
+        },
+      ];
     });
   }, []);
 
@@ -52,11 +84,15 @@ export function NotificationsProvider({ children }) {
   }, []);
 
   const clearUnreadForConversation = useCallback((conversationId) => {
-    setUnreadConversations(prev => {
-      const conversation = prev.find(c => String(c.conversationId) === String(conversationId));
+    setUnreadConversations((prev) => {
+      const conversation = prev.find(
+        (c) => String(c.conversationId) === String(conversationId),
+      );
       if (!conversation) return prev;
-      setUnreadCount(c => Math.max(0, c - conversation.count));
-      return prev.filter(c => String(c.conversationId) !== String(conversationId));
+      setUnreadCount((c) => Math.max(0, c - conversation.count));
+      return prev.filter(
+        (c) => String(c.conversationId) !== String(conversationId),
+      );
     });
   }, []);
 
@@ -81,21 +117,29 @@ export function NotificationsProvider({ children }) {
       socket.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
-          if (data.type === 'new_message') {
-            addUnread(data.conversation_id, data.listing_id, data.listing_title);
+          if (data.type === "new_message") {
+            addUnread(
+              data.conversation_id,
+              data.listing_id,
+              data.listing_title,
+            );
           }
-        } catch (err) { /* ignore */ }
+        } catch (err) {
+          console.log(err.Error);
+        }
       };
 
       socket.onclose = () => {
         // Don't reconnect with an expired token — auto-logout instead
-        const currentToken = localStorage.getItem('tradexa_token');
+        const currentToken = localStorage.getItem("tradexa_token");
         if (isTokenExpired(currentToken)) {
           logout();
           return;
         }
         // Reconnect after 5s if token is still valid
-        setTimeout(() => { if (isAuthenticated) connect(); }, 5000);
+        setTimeout(() => {
+          if (isAuthenticated) connect();
+        }, 5000);
       };
     };
 
@@ -109,7 +153,15 @@ export function NotificationsProvider({ children }) {
   }, [isAuthenticated, addUnread, logout]);
 
   return (
-    <NotificationsContext.Provider value={{ unreadCount, unreadConversations, addUnread, clearUnread, clearUnreadForConversation }}>
+    <NotificationsContext.Provider
+      value={{
+        unreadCount,
+        unreadConversations,
+        addUnread,
+        clearUnread,
+        clearUnreadForConversation,
+      }}
+    >
       {children}
     </NotificationsContext.Provider>
   );
@@ -117,6 +169,9 @@ export function NotificationsProvider({ children }) {
 
 export function useNotifications() {
   const ctx = useContext(NotificationsContext);
-  if (!ctx) throw new Error('useNotifications must be used within NotificationsProvider');
+  if (!ctx)
+    throw new Error(
+      "useNotifications must be used within NotificationsProvider",
+    );
   return ctx;
 }

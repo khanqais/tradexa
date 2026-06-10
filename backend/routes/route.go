@@ -22,6 +22,7 @@ func RegisterRoutes(r *gin.Engine) {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{
+			protected.POST("/forget", handlers.ChangePassowrd)
 			protected.GET("/me", handlers.GetMe)
 			protected.POST("/listings", handlers.CreateListing)
 			protected.PUT("/listings/:id", handlers.UpdateListing)

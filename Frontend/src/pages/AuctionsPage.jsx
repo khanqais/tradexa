@@ -61,7 +61,7 @@ export default function AuctionsPage() {
 
   return (
     <div className="page">
-      {/* Hero Section */}
+     
       <section className="hero">
         <div className="hero__content">
           <motion.h1 
@@ -116,7 +116,7 @@ export default function AuctionsPage() {
         </div>
       </section>
 
-      {/* Filters */}
+      
       <section className="filters">
         <div className="container">
           <div className="filters__content">
@@ -148,7 +148,7 @@ export default function AuctionsPage() {
         </div>
       </section>
 
-      {/* Listings Grid */}
+      
       <section className="listings-grid">
         <div className="container">
           {error && (
