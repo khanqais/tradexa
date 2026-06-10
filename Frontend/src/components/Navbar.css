@@ -16,7 +16,6 @@
   gap: var(--sp-6);
 }
 
-/* Logo */
 .navbar__logo {
   display: flex;
   align-items: center;
@@ -43,7 +42,6 @@
   padding-top: 2px;
 }
 
-/* Nav links */
 .navbar__links {
   display: flex;
   align-items: center;
@@ -82,7 +80,6 @@
   width: 100%;
 }
 
-/* Right actions */
 .navbar__actions {
   display: flex;
   align-items: center;
@@ -90,7 +87,6 @@
   flex-shrink: 0;
 }
 
-/* User button */
 .navbar__user-btn {
   display: flex;
   align-items: center;
@@ -125,7 +121,6 @@
   white-space: nowrap;
 }
 
-/* Bottom accent */
 .navbar__accent {
   height: 1px;
   background: linear-gradient(
@@ -139,14 +134,12 @@
   opacity: 0.4;
 }
 
-/* Mobile */
 @media (max-width: 700px) {
   .navbar__links { display: none; }
   .navbar__username { display: none; }
 }
 
 
-/* ── Messages icon & badge ── */
 .navbar__msg-wrap {
   position: relative;
 }
@@ -195,7 +188,6 @@
   to   { transform: scale(1);   opacity: 1; }
 }
 
-/* ── Messages dropdown ── */
 .navbar__msg-dropdown {
   position: absolute;
   top: calc(100% + 10px);
@@ -304,7 +296,6 @@
 }
 .navbar__msg-view-all:hover { color: var(--verd-light); }
 
-/* Sign out icon button */
 .navbar__signout {
   background: none;
   border: none;

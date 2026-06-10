@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 import "./ListingCard.css";
 
@@ -44,7 +45,6 @@ export default function ListingCard({ listing, index = 0 }) {
       whileHover={{ y: -4 }}
     >
       <Link to={`/listings/${listing.id}`} className="listing-card__link">
-        {/* Image */}
         <div className="listing-card__img-wrap">
           {listing.images?.[0]?.url || listing.image_url ? (
             <img
@@ -59,7 +59,6 @@ export default function ListingCard({ listing, index = 0 }) {
             </div>
           )}
 
-          {/* Overlay badges */}
           <div className="listing-card__badges">
             {isAuction ? (
               <span className="tag tag--auction">⚡ Auction</span>
@@ -69,7 +68,6 @@ export default function ListingCard({ listing, index = 0 }) {
             {listing.is_sold && <span className="tag tag--sold">Sold</span>}
           </div>
 
-          {/* Auction countdown */}
           {isAuction && countdown && !listing.is_sold && (
             <div
               className={`listing-card__countdown ${isUrgent ? "listing-card__countdown--urgent" : ""}`}
@@ -80,7 +78,6 @@ export default function ListingCard({ listing, index = 0 }) {
           )}
         </div>
 
-        {/* Body */}
         <div className="listing-card__body">
           {listing.category && (
             <span className="listing-card__category">{listing.category}</span>
@@ -88,7 +85,6 @@ export default function ListingCard({ listing, index = 0 }) {
           <h3 className="listing-card__title">{listing.title}</h3>
           <p className="listing-card__desc">{listing.description}</p>
 
-          {/* Footer */}
           <div className="listing-card__footer">
             <div>
               <div className="listing-card__price-label">

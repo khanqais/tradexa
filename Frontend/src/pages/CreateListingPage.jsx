@@ -24,16 +24,16 @@ export default function CreateListingPage() {
     reserve_price: '',
     type: 'fixed',
     category: '',
-    image_urls: [], // Changed to array for multiple images
+    image_urls: [],
     auction_ends_at: '',
   });
 
-  const [imageFiles, setImageFiles] = useState([]); // Changed to handle multiple files
-  const [imagePreviews, setImagePreviews] = useState([]); // Changed to handle multiple previews
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [uploading, setUploading]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState('');
-  const [step, setStep]             = useState(1); // 1: details, 2: preview
+  const [step, setStep]             = useState(1);
 
   const fileInputRef = useRef(null);
 
@@ -55,11 +55,9 @@ export default function CreateListingPage() {
   const handleImagePick = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    // Add new files to the existing array
     const newFiles = [...imageFiles, ...files];
     setImageFiles(newFiles);
     
-    // Generate previews for all files
     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setImagePreviews(newPreviews);
 
@@ -68,11 +66,9 @@ export default function CreateListingPage() {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
     if (!files.length || !files.every(file => file.type.startsWith('image/'))) return;
-    // Add new files to the existing array
     const newFiles = [...imageFiles, ...files];
     setImageFiles(newFiles);
     
-    // Generate previews for all files
     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setImagePreviews(newPreviews);
   };
@@ -81,7 +77,6 @@ export default function CreateListingPage() {
     setUploading(true);
     try {
       const uploadPromises = imageFiles.map(file => uploadImage(file));
-      // Upload all selected images and collect the URLs
       const results = await Promise.all(uploadPromises);
       const urls = results.map(res => res.data.url);
       setForm(f => ({ ...f, image_urls: urls }));
@@ -118,7 +113,6 @@ export default function CreateListingPage() {
     setError('');
 
     try {
-      // Upload image first if one was chosen
       let imageUrls = form.image_urls;
       if (imageFiles.length > 0) {
         imageUrls = await handleImageUpload();
@@ -153,7 +147,6 @@ export default function CreateListingPage() {
 
   return (
     <div className="create container">
-      {/* Header */}
       <motion.div
         className="create__header"
         initial={{ opacity: 0, y: -16 }}
@@ -175,10 +168,8 @@ export default function CreateListingPage() {
         transition={{ duration: 0.5, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
       >
         <div className="create__layout">
-          {/* ── Left column: main fields ── */}
           <div className="create__col-main">
 
-            {/* Listing type */}
             <div className="create__section">
               <h3 className="create__section-title">Listing Type</h3>
               <div className="create__type-picker">
@@ -203,7 +194,6 @@ export default function CreateListingPage() {
               </div>
             </div>
 
-            {/* Basic info */}
             <div className="create__section">
               <h3 className="create__section-title">Item Details</h3>
 
@@ -254,7 +244,6 @@ export default function CreateListingPage() {
               </div>
             </div>
 
-            {/* Pricing */}
             <div className="create__section">
               <h3 className="create__section-title">Pricing</h3>
 
@@ -314,7 +303,6 @@ export default function CreateListingPage() {
             </div>
           </div>
 
-          {/* ── Right column: image ── */}
           <div className="create__col-side">
             <div className="create__section">
               <h3 className="create__section-title">Item Photo</h3>
@@ -368,7 +356,6 @@ export default function CreateListingPage() {
                 </button>
               )}
 
-              {/* Or URL input */}
               <div className="create__field" style={{ marginTop: '16px' }}>
                 <label className="form-label">Or paste image URL</label>
                 <input
@@ -384,7 +371,6 @@ export default function CreateListingPage() {
               </div>
             </div>
 
-            {/* Preview card */}
             {(form.title || form.price) && (
               <div className="create__section create__preview-section">
                 <h3 className="create__section-title">Preview</h3>
@@ -420,7 +406,6 @@ export default function CreateListingPage() {
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <motion.div
             className="create__error"
@@ -431,7 +416,6 @@ export default function CreateListingPage() {
           </motion.div>
         )}
 
-        {/* Submit */}
         <div className="create__actions">
           <Link to="/" className="btn btn--ghost">Cancel</Link>
           <button

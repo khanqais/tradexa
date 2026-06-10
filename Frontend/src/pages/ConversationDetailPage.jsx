@@ -57,7 +57,6 @@ export default function ConversationDetailPage() {
   const wsRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // Fetch conversation details
   useEffect(() => {
     const fetchConversation = async () => {
       setLoading(true);
@@ -84,7 +83,6 @@ export default function ConversationDetailPage() {
     fetchConversation();
   }, [conversationId]);
 
-  // Load chat history
   useEffect(() => {
     const loadHistory = async () => {
       if (!conversationId) return;
@@ -102,7 +100,6 @@ export default function ConversationDetailPage() {
     loadHistory();
   }, [conversationId]);
 
-  // WebSocket connection
   const connectWs = useCallback(() => {
     if (!isAuthenticated || wsRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -138,7 +135,6 @@ export default function ConversationDetailPage() {
     }
   }, []);
 
-  // Auto-connect when authenticated and conversation is loaded
   useEffect(() => {
     if (conversation && isAuthenticated) {
       connectWs();
@@ -147,7 +143,6 @@ export default function ConversationDetailPage() {
     return disconnectWs;
   }, [conversation, isAuthenticated, connectWs, disconnectWs, clearUnreadForConversation, conversationId]);
 
-  // Auto-scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -185,7 +180,6 @@ export default function ConversationDetailPage() {
   return (
     <div className="conversation-detail">
 
-      {/* Header */}
       <div className="conversation-detail__header">
         <button
           onClick={() => navigate('/conversations')}
@@ -221,8 +215,6 @@ export default function ConversationDetailPage() {
         </div>
       </div>
 
-      {/* Chat */}
-
       <div className="conversation-detail__chat">
         <div className="conversation-chat-area">
           {chatLoading ? (
@@ -248,7 +240,6 @@ export default function ConversationDetailPage() {
           )}
         </div>
 
-        {/* Input */}
         <div className="conversation-input-area">
           <input
             className="conversation-input"

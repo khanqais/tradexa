@@ -8,7 +8,6 @@
   padding: var(--sp-8) var(--sp-4);
 }
 
-/* Background decorations */
 .auth-page__bg {
   position: absolute;
   inset: 0;
@@ -58,7 +57,6 @@
   );
 }
 
-/* Content */
 .auth-page__content {
   position: relative;
   z-index: 1;
@@ -70,7 +68,6 @@
   gap: var(--sp-8);
 }
 
-/* Logo */
 .auth-page__logo {
   display: flex;
   align-items: center;
@@ -96,7 +93,6 @@
   padding-top: 4px;
 }
 
-/* Card */
 .auth-card {
   width: 100%;
   background: var(--ink-raised);
@@ -106,7 +102,6 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* Tabs */
 .auth-card__tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -145,7 +140,6 @@
   z-index: 0;
 }
 
-/* Error */
 .auth-card__error {
   display: flex;
   align-items: center;
@@ -158,7 +152,6 @@
   overflow: hidden;
 }
 
-/* Form */
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -200,7 +193,6 @@
 }
 .auth-form__switch-btn:hover { color: var(--verd-glow); }
 
-/* Role picker */
 .auth-role-picker {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -240,7 +232,6 @@
   color: var(--text-tertiary);
 }
 
-/* Footer */
 .auth-page__footer {
   font-size: 0.75rem;
   color: var(--text-tertiary);

@@ -1,59 +1,42 @@
-/* ============================================================
-   TRADEXA — Global Design System
-   Aesthetic: Oxidized bronze / trading floor / antique auction house
-   Fonts: Playfair Display (editorial serif) + DM Mono (ticker) + Syne (UI)
-   ============================================================ */
-
-/* ---- CSS Variables ---- */
 :root {
-  /* Core palette */
   --ink:        #0d0d0b;
   --ink-soft:   #141410;
   --ink-raised: #1c1c18;
   --ink-border: #2a2a24;
   --ink-muted:  #3d3d34;
 
-  /* Verdigris / oxidized copper */
   --verd-dark:  #1a3a35;
   --verd:       #2e6b60;
   --verd-light: #4a9e8e;
   --verd-glow:  #5fbfac;
 
-  /* Amber accent */
   --amber:      #c8832a;
   --amber-hot:  #e89f44;
   --amber-glow: #f0b862;
 
-  /* Text */
   --text-primary:   #f0ede6;
   --text-secondary: #a8a49a;
   --text-tertiary:  #6b6862;
   --text-accent:    var(--amber-hot);
 
-  /* Status */
   --status-live:  #4a9e8e;
   --status-sold:  #8b4a4a;
   --status-fixed: #6b7a8b;
 
-  /* Typography */
   --font-display: 'Playfair Display', Georgia, serif;
   --font-ui:      'Syne', system-ui, sans-serif;
   --font-mono:    'DM Mono', 'Courier New', monospace;
 
-  /* Spacing */
   --sp-1:  4px;  --sp-2:  8px;  --sp-3:  12px; --sp-4:  16px;
   --sp-5:  20px; --sp-6:  24px; --sp-8:  32px; --sp-10: 40px;
   --sp-12: 48px; --sp-16: 64px; --sp-20: 80px; --sp-24: 96px;
 
-  /* Radii */
   --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-xl: 20px;
 
-  /* Transitions */
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
   --t-fast: 150ms; --t-base: 250ms; --t-slow: 400ms;
 
-  /* Shadows */
   --shadow-sm:    0 1px 3px rgba(0,0,0,0.5);
   --shadow-md:    0 4px 16px rgba(0,0,0,0.55);
   --shadow-lg:    0 12px 40px rgba(0,0,0,0.65);
@@ -61,7 +44,6 @@
   --shadow-verd:  0 0 20px rgba(74,158,142,0.25);
 }
 
-/* ---- Reset ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
@@ -82,13 +64,11 @@ body {
     radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46,107,96,0.14) 0%, transparent 60%);
 }
 
-/* ---- Scrollbar ---- */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--ink-soft); }
 ::-webkit-scrollbar-thumb { background: var(--ink-muted); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--verd); }
 
-/* ---- Typography ---- */
 h1, h2, h3 {
   font-family: var(--font-display);
   font-weight: 600;
@@ -117,11 +97,9 @@ input, textarea, select {
 
 img { display: block; max-width: 100%; }
 
-/* ---- Layout ---- */
 .container { max-width: 1280px; margin: 0 auto; padding: 0 var(--sp-6); }
 .container--narrow { max-width: 780px; margin: 0 auto; padding: 0 var(--sp-6); }
 
-/* ---- Keyframes ---- */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -162,7 +140,6 @@ img { display: block; max-width: 100%; }
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* ---- Utility Styles ---- */
 .skeleton {
   background: linear-gradient(90deg,var(--ink-raised) 25%,var(--ink-border) 50%,var(--ink-raised) 75%);
   background-size: 200% 100%;
@@ -202,7 +179,6 @@ img { display: block; max-width: 100%; }
 .tag--fixed   { background: rgba(107,122,139,0.12); color: #8aabb5;         border: 1px solid rgba(107,122,139,0.3); }
 .tag--sold    { background: rgba(139,74,74,0.15);   color: #c47a7a;          border: 1px solid rgba(139,74,74,0.3); }
 
-/* ---- Forms ---- */
 .form-input {
   width: 100%;
   background: var(--ink-raised);
@@ -232,7 +208,6 @@ img { display: block; max-width: 100%; }
   margin-top: 4px;
 }
 
-/* ---- Buttons ---- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   font-family: var(--font-ui);
@@ -264,10 +239,8 @@ img { display: block; max-width: 100%; }
 .btn--lg { padding: 14px 32px; font-size: 1rem; }
 .btn:disabled { opacity: 0.38; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
-/* ---- Divider ---- */
 .divider { height: 1px; background: var(--ink-border); margin: var(--sp-6) 0; }
 
-/* ---- Spinner ---- */
 .spinner {
   width: 20px; height: 20px;
   border: 2px solid var(--ink-border);
@@ -275,4 +248,3 @@ img { display: block; max-width: 100%; }
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-

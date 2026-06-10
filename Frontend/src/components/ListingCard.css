@@ -29,7 +29,6 @@
   color: inherit;
 }
 
-/* Image */
 .listing-card__img-wrap {
   position: relative;
   aspect-ratio: 4 / 3;
@@ -63,7 +62,6 @@
   opacity: 0.4;
 }
 
-/* Badges overlay */
 .listing-card__badges {
   position: absolute;
   top: 10px;
@@ -73,7 +71,6 @@
   flex-wrap: wrap;
 }
 
-/* Countdown */
 .listing-card__countdown {
   position: absolute;
   bottom: 10px;
@@ -104,7 +101,6 @@
   border-color: rgba(200, 131, 42, 0.4);
 }
 
-/* Body */
 .listing-card__body {
   display: flex;
   flex-direction: column;
@@ -130,7 +126,6 @@
   letter-spacing: -0.01em;
   margin-top: 2px;
 
-  /* clamp to 2 lines */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -148,7 +143,6 @@
   flex: 1;
 }
 
-/* Footer */
 .listing-card__footer {
   display: flex;
   align-items: flex-end;

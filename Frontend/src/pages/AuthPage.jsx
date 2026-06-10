@@ -13,9 +13,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
-  // Login form
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  // Register form
   const [regData, setRegData] = useState({ name: '', email: '', password: '', role: 'buyer' });
 
   useEffect(() => {
@@ -46,7 +44,6 @@ export default function AuthPage() {
     setLoading(true);
     try {
       await register(regData.name, regData.email, regData.password, regData.role);
-      // Auto-login after registration
       await login(regData.email, regData.password);
       navigate('/');
     } catch (err) {
@@ -64,7 +61,6 @@ export default function AuthPage() {
 
   return (
     <div className="auth-page">
-      {/* Decorative background */}
       <div className="auth-page__bg" aria-hidden="true">
         <div className="auth-page__bg-circle auth-page__bg-circle--1" />
         <div className="auth-page__bg-circle auth-page__bg-circle--2" />
@@ -76,7 +72,6 @@ export default function AuthPage() {
       </div>
 
       <div className="auth-page__content">
-        {/* Logo */}
         <Link to="/" className="auth-page__logo">
           <span className="auth-page__logo-mark">T</span>
           <span className="auth-page__logo-text">RADEXA</span>
@@ -88,7 +83,6 @@ export default function AuthPage() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          {/* Tab switcher */}
           <div className="auth-card__tabs">
             <button
               className={`auth-card__tab ${mode === 'login' ? 'auth-card__tab--active' : ''}`}
@@ -102,14 +96,12 @@ export default function AuthPage() {
             >
               Create Account
             </button>
-            {/* Active indicator */}
             <div
               className="auth-card__tab-indicator"
               style={{ transform: `translateX(${mode === 'login' ? '0%' : '100%'})` }}
             />
           </div>
 
-          {/* Error */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -124,7 +116,6 @@ export default function AuthPage() {
             )}
           </AnimatePresence>
 
-          {/* Forms */}
           <AnimatePresence mode="wait">
             {mode === 'login' ? (
               <motion.form

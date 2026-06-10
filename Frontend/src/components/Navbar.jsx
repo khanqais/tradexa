@@ -21,7 +21,6 @@ export default function Navbar() {
     setMsgOpen(prev => !prev);
   };
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -35,13 +34,11 @@ export default function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar__inner container">
-        {/* Logo */}
         <Link to="/" className="navbar__logo">
           <span className="navbar__logo-mark">T</span>
           <span className="navbar__logo-text">RADEXA</span>
         </Link>
 
-        {/* Center nav links */}
         <nav className="navbar__links">
           <Link to="/" className="navbar__link">Market</Link>
           <Link to="/auctions" className="navbar__link">
@@ -51,11 +48,9 @@ export default function Navbar() {
           <Link to="/buy-products" className="navbar__link">Buy Products</Link>
         </nav>
 
-        {/* Right actions */}
         <div className="navbar__actions">
           {isAuthenticated ? (
             <>
-              {/* Messages icon with badge */}
               <div className="navbar__msg-wrap" ref={dropdownRef}>
                 <Link
                   to="/conversations"
@@ -71,7 +66,6 @@ export default function Navbar() {
                   )}
                 </Link>
 
-                {/* Dropdown */}
                 {msgOpen && (
                   <div className="navbar__msg-dropdown">
                     <div className="navbar__msg-dropdown-header">
@@ -152,7 +146,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Bottom accent line */}
       <div className="navbar__accent" />
     </header>
   );

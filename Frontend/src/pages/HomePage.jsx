@@ -18,7 +18,6 @@ export default function HomePage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
 
-  // Filter state derived from URL params
   const search   = searchParams.get('search')   || '';
   const category = searchParams.get('category') || '';
   const type     = searchParams.get('type')     || '';
@@ -70,9 +69,7 @@ export default function HomePage() {
 
   return (
     <div className="home">
-      {/* ── Hero ── */}
       <section className="home__hero">
-        {/* Decorative grid lines */}
         <div className="home__hero-grid" aria-hidden="true">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="home__hero-gridline" style={{ '--i': i }} />
@@ -116,11 +113,9 @@ export default function HomePage() {
           </motion.div>
         </motion.div>
 
-        {/* Bottom fade */}
         <div className="home__hero-fade" aria-hidden="true" />
       </section>
 
-      {/* ── Stats strip ── */}
       <div className="home__stats">
         <div className="container">
           <div className="home__stats-inner">
@@ -147,13 +142,10 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Listings section ── */}
       <section className="home__listings" id="listings">
         <div className="container">
 
-          {/* Toolbar */}
           <div className="home__toolbar">
-            {/* Search */}
             <form className="home__search" onSubmit={handleSearch}>
               <span className="home__search-icon">⌕</span>
               <input
@@ -172,7 +164,6 @@ export default function HomePage() {
               )}
             </form>
 
-            {/* Type filter */}
             <div className="home__filters">
               {['', 'auction', 'fixed'].map(t => (
                 <button
@@ -186,7 +177,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Categories */}
           <div className="home__categories">
             {CATEGORIES.map(cat => {
               const val = cat === 'All' ? '' : cat.toLowerCase();
@@ -203,7 +193,6 @@ export default function HomePage() {
             })}
           </div>
 
-          {/* Active filter pills */}
           {(search || category || type) && (
             <div className="home__active-filters">
               <span className="home__active-filters-label">Filtering:</span>
@@ -213,7 +202,6 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Grid */}
           {loading ? (
             <div className="home__loading">
               <Spinner size="lg" />
@@ -253,7 +241,6 @@ export default function HomePage() {
             </AnimatePresence>
           )}
 
-          {/* Pagination */}
           {meta.pages > 1 && (
             <div className="home__pagination">
               <button

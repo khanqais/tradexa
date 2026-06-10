@@ -15,7 +15,6 @@ import './App.css';
 
 function Footer() {
   const location = useLocation();
-  // Hide footer on conversation detail pages
   if (location.pathname.startsWith('/conversations/')) return null;
   return (
     <footer className="app__footer">
@@ -59,7 +58,6 @@ export default function App() {
                 <Route path="/buy-products"  element={<BuyProductsPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />
                 <Route path="/conversations/:conversationId" element={<ConversationDetailPage />} />
-                {/* 404 */}
                 <Route path="*" element={
                   <div style={{
                     minHeight: '60vh',

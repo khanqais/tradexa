@@ -96,7 +96,6 @@ export default function AuctionsPage() {
         </div>
       </section>
 
-      {/* Stats Strip */}
       <section className="stats-strip">
         <div className="container">
           <div className="stats-strip__content">

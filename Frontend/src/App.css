@@ -1,4 +1,3 @@
-/* ── App Shell ── */
 .app {
   min-height: 100vh;
   display: flex;
@@ -11,7 +10,6 @@
   flex: 1;
 }
 
-/* ── Footer ── */
 .app__footer {
   border-top: 1px solid var(--ink-border);
   background: var(--ink-soft);

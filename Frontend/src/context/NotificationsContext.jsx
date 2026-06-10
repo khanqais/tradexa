@@ -31,7 +31,6 @@ export function NotificationsProvider({ children }) {
     }
   });
 
-  // Track which conversations have unread messages
   const [unreadConversations, setUnreadConversations] = useState(() => {
     try {
       return JSON.parse(
@@ -96,7 +95,6 @@ export function NotificationsProvider({ children }) {
     });
   }, []);
 
-  // Global notification socket
   const wsRef = useRef(null);
 
   useEffect(() => {
@@ -130,13 +128,11 @@ export function NotificationsProvider({ children }) {
       };
 
       socket.onclose = () => {
-        // Don't reconnect with an expired token — auto-logout instead
         const currentToken = localStorage.getItem("tradexa_token");
         if (isTokenExpired(currentToken)) {
           logout();
           return;
         }
-        // Reconnect after 5s if token is still valid
         setTimeout(() => {
           if (isAuthenticated) connect();
         }, 5000);

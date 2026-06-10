@@ -4,7 +4,6 @@ import { login as apiLogin, register as apiRegister } from '../api';
 
 const AuthContext = createContext(null);
 
-// Decode JWT payload and check if it's expired
 function isTokenExpired(token) {
   if (!token) return true;
   try {
@@ -28,7 +27,6 @@ export function AuthProvider({ children }) {
   });
   const [loading, setLoading] = useState(true);
 
-  // On mount, restore user from localStorage
   useEffect(() => {
     const storedUser = localStorage.getItem('tradexa_user');
     if (storedUser && token) {
