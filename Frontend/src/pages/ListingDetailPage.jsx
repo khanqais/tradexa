@@ -83,6 +83,31 @@ export default function ListingDetailPage() {
     return () => clearInterval(interval);
   }, [listing]);
 
+  // SSE: real-time bid updates
+  useEffect(() => {
+    if (!listing || listing.type !== 'auction') return;
+
+    const eventSource = new EventSource(`http://localhost:8080/api/stream/${id}`);
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'new_bid') {
+        setCurrentBid(Number(data.amount));
+        setListing((prev) =>
+          prev ? { ...prev, highest_bid: Number(data.amount) } : prev
+        );
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [id, listing?.type]);
+
   const handleChat = async () => {
     if (!isAuthenticated) {
       navigate('/auth');
@@ -129,9 +154,9 @@ export default function ListingDetailPage() {
       setListing((prev) =>
         prev
           ? {
-              ...prev,
-              highest_bid: Number(bid.amount),
-            }
+            ...prev,
+            highest_bid: Number(bid.amount),
+          }
           : prev
       );
       setBidSuccess(`Your bid of ${formatPrice(bid.amount)} was placed successfully.`);

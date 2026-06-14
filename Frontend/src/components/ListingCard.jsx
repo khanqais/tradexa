@@ -88,10 +88,10 @@ export default function ListingCard({ listing, index = 0 }) {
           <div className="listing-card__footer">
             <div>
               <div className="listing-card__price-label">
-                {isAuction ? "Starting bid" : "Price"}
+                {isAuction ? (listing.highest_bid ? "Current bid" : "Starting bid") : "Price"}
               </div>
               <div className="price-display listing-card__price">
-                {formatPrice(listing.price)}
+                {formatPrice(isAuction && listing.highest_bid ? listing.highest_bid : listing.price)}
               </div>
             </div>
             {listing.seller && (

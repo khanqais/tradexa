@@ -18,6 +18,7 @@ func RegisterRoutes(r *gin.Engine) {
 		api.POST("/register", handlers.Register)
 		api.GET("/listings", handlers.GetListings)
 		api.GET("/listings/:id", handlers.GetListingByID)
+		api.GET("/stream/:id", handlers.StreamBid)
 
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())

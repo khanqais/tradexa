@@ -2,11 +2,13 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/main.exe main.go"
+cmd = "go build -o ./tmp/main.exe ."
 bin = "tmp/main.exe"
 delay = 300
 exclude_dir = ["tmp", "vendor"]
 exclude_regex = [".*_test\\.go"]
+send_interrupt = true
+kill_delay = 500
 
 [log]
 time = true

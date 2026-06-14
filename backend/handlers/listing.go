@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -163,6 +165,15 @@ func GetListings(c *gin.Context) {
 
 	for i := range listings {
 		listings[i].Seller.Password = ""
+		if listings[i].Type == models.ListingTypeAuction {
+			var highestBid models.Bid
+			if err := config.DB.WithContext(c.Request.Context()).
+				Where("listing_id = ?", listings[i].ID).
+				Order("amount desc").
+				First(&highestBid).Error; err == nil {
+				listings[i].HighestBid = &highestBid.Amount
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -327,20 +338,20 @@ func BidHandler(c *gin.Context) {
 
 	if errr != nil {
 		if errors.Is(errr, gorm.ErrRecordNotFound) {
-			// SCENARIO A: No bids exist yet. First bid must be >= starting price.
+			//No bids exist yet. First bid must be >= starting price.
 			if input.Amount < uint(listing.Price) {
 				tx.Rollback()
 				c.JSON(http.StatusBadRequest, gin.H{"error": "first bid must be at least the starting price"})
 				return
 			}
 		} else {
-			// SCENARIO B: A real database connection error occurred.
+			// A real database connection error occurred.
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": errr.Error()})
 			return
 		}
 	} else {
-		// SCENARIO C: Bids already exist. New bid must be strictly > highest bid.
+		// Bids already exist. New bid must be strictly > highest bid.
 		if input.Amount <= uint(highestBid.Amount) {
 			tx.Rollback()
 			c.JSON(http.StatusBadRequest, gin.H{"error": "bid must be higher than the current highest bid"})
@@ -359,7 +370,17 @@ func BidHandler(c *gin.Context) {
 	}
 	tx.Commit()
 
-	// my SSE will come here
+	payload := map[string]interface{}{
+		"type":       "new_bid",
+		"listing_id": newBid.ListingID,
+		"amount":     newBid.Amount,
+	}
+	messageBytes, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("Error marshaling payload:", err)
+	}
+	StreamHub.Broadcast(newBid.ListingID, messageBytes)
+
 	c.JSON(http.StatusOK, gin.H{
 		"Message": "bid placed successfully",
 		"bid":     newBid,

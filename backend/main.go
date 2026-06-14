@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -14,7 +15,7 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("No .env found")
+		fmt.Println("No .env found")
 	}
 	config.ConnectDB()
 	config.ConnectCloudinary()
