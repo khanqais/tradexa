@@ -30,6 +30,7 @@ type Listing struct {
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	HighestBid    *float64       `gorm:"-" json:"highest_bid,omitempty"`
 }
 
 // ListingImage represents an image associated with a Listing

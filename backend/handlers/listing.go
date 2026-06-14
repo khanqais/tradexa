@@ -33,6 +33,11 @@ type UpdateListingInput struct {
 	ImageURLs    []string `json:"image_urls"`
 }
 
+type NewBid struct {
+	Amount    uint `json:"amount" binding:"required"`
+	ListingID uint `json:"listing_id" binding:"required"`
+}
+
 func CreateListing(c *gin.Context) {
 	var input CreateListingInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -59,7 +64,7 @@ func CreateListing(c *gin.Context) {
 		ReservePrice:  input.ReservePrice,
 		Type:          models.ListingType(input.Type),
 		Category:      input.Category,
-		ImageURL:      "", // Will use Images relation instead
+		ImageURL:      "",
 		SellerID:      sellerID,
 		AuctionEndsAt: input.AuctionEndsAt,
 	}
@@ -69,7 +74,6 @@ func CreateListing(c *gin.Context) {
 		})
 		return
 	}
-	// Create ListingImage records for each image URL
 	for _, imageURL := range input.ImageURLs {
 		listingImage := models.ListingImage{
 			ListingID: listing.ID,
@@ -78,7 +82,6 @@ func CreateListing(c *gin.Context) {
 		config.DB.WithContext(c.Request.Context()).Create(&listingImage)
 	}
 
-	// Preload the images for the response
 	config.DB.WithContext(c.Request.Context()).Preload("Seller").Preload("Images").First(&listing, listing.ID)
 	listing.Seller.Password = ""
 
@@ -101,6 +104,15 @@ func GetListingByID(c *gin.Context) {
 	}
 
 	listing.Seller.Password = ""
+
+	var highestBid models.Bid
+	if err := config.DB.WithContext(c.Request.Context()).
+		Where("listing_id = ?", listing.ID).
+		Order("amount desc").
+		First(&highestBid).Error; err == nil {
+		listing.HighestBid = &highestBid.Amount
+	}
+
 	c.JSON(http.StatusOK, gin.H{"listing": listing})
 }
 
@@ -109,7 +121,6 @@ func GetListings(c *gin.Context) {
 
 	query := config.DB.WithContext(c.Request.Context()).Preload("Seller").Preload("Images")
 
-	// ?search=laptop
 	if search := strings.TrimSpace(c.Query("search")); search != "" {
 		query = query.Where("LOWER(title) LIKE ? OR LOWER(description) LIKE ?",
 			"%"+strings.ToLower(search)+"%",
@@ -117,12 +128,10 @@ func GetListings(c *gin.Context) {
 		)
 	}
 
-	// ?category=electronics
 	if category := strings.TrimSpace(c.Query("category")); category != "" {
 		query = query.Where("LOWER(category) = ?", strings.ToLower(category))
 	}
 
-	// ?type=auction OR ?type=fixed
 	if listingType := c.Query("type"); listingType == "auction" || listingType == "fixed" {
 		query = query.Where("type = ?", listingType)
 	}
@@ -134,7 +143,6 @@ func GetListings(c *gin.Context) {
 		query = query.Where("is_sold = ?", false)
 	}
 
-	// pagination: ?page=1&limit=10
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if page < 1 {
@@ -153,7 +161,6 @@ func GetListings(c *gin.Context) {
 		return
 	}
 
-	// hide seller passwords
 	for i := range listings {
 		listings[i].Seller.Password = ""
 	}
@@ -169,7 +176,6 @@ func GetListings(c *gin.Context) {
 	})
 }
 
-// PUT /listings/:id — update listing (protected, owner only)
 func UpdateListing(c *gin.Context) {
 	id := c.Param("id")
 
@@ -183,7 +189,6 @@ func UpdateListing(c *gin.Context) {
 		return
 	}
 
-	// only the owner can update
 	rawID, _ := c.Get("user_id")
 	sellerID := uint(rawID.(float64))
 	if listing.SellerID != sellerID {
@@ -197,7 +202,6 @@ func UpdateListing(c *gin.Context) {
 		return
 	}
 
-	// only update fields that were actually sent
 	updates := map[string]interface{}{}
 	if input.Title != "" {
 		updates["title"] = input.Title
@@ -212,10 +216,8 @@ func UpdateListing(c *gin.Context) {
 		updates["category"] = input.Category
 	}
 	if len(input.ImageURLs) > 0 {
-		// Delete existing images for this listing
-		config.DB.WithContext(c.Request.Context()).Where("listing_id = ?", listing.ID).Delete(&models.ListingImage{})
 
-		// Create new ListingImage records for each image URL
+		config.DB.WithContext(c.Request.Context()).Where("listing_id = ?", listing.ID).Delete(&models.ListingImage{})
 		for _, imageURL := range input.ImageURLs {
 			listingImage := models.ListingImage{
 				ListingID: listing.ID,
@@ -237,7 +239,6 @@ func UpdateListing(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"listing": listing})
 }
 
-// DELETE /listings/:id — delete listing (protected, owner only)
 func DeleteListing(c *gin.Context) {
 	id := c.Param("id")
 
@@ -264,4 +265,104 @@ func DeleteListing(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "listing deleted successfully"})
+}
+
+func BidHandler(c *gin.Context) {
+	var input NewBid
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	rawID, exist := c.Get("user_id")
+	if !exist {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+	bidderID := uint(rawID.(float64))
+
+	tx := config.DB.WithContext(c.Request.Context()).Begin()
+	defer func() {
+		// Something wrong happen then this func will work
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	var listing models.Listing
+	if err := tx.First(&listing, input.ListingID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
+		return
+	}
+	if listing.Type != models.ListingTypeAuction {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "this item is not up for auction"})
+		return
+	}
+
+	if listing.IsSold {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "this auction is already closed"})
+		return
+	}
+
+	if listing.AuctionEndsAt != nil && listing.AuctionEndsAt.Before(time.Now()) {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "this auction has expired"})
+		return
+	}
+
+	if listing.SellerID == bidderID {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "you cannot bid on your own listing"})
+		return
+	}
+
+	var highestBid models.Bid
+	errr := tx.Where("listing_id = ?", input.ListingID).Order("amount desc").First(&highestBid).Error
+
+	if errr != nil {
+		if errors.Is(errr, gorm.ErrRecordNotFound) {
+			// SCENARIO A: No bids exist yet. First bid must be >= starting price.
+			if input.Amount < uint(listing.Price) {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": "first bid must be at least the starting price"})
+				return
+			}
+		} else {
+			// SCENARIO B: A real database connection error occurred.
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errr.Error()})
+			return
+		}
+	} else {
+		// SCENARIO C: Bids already exist. New bid must be strictly > highest bid.
+		if input.Amount <= uint(highestBid.Amount) {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bid must be higher than the current highest bid"})
+			return
+		}
+	}
+	newBid := models.Bid{
+		ListingID: input.ListingID,
+		BidderID:  bidderID,
+		Amount:    float64(input.Amount),
+	}
+	if err := tx.Create(&newBid).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to place bid"})
+		return
+	}
+	tx.Commit()
+
+	// my SSE will come here
+	c.JSON(http.StatusOK, gin.H{
+		"Message": "bid placed successfully",
+		"bid":     newBid,
+	})
+
 }

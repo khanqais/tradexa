@@ -18,17 +18,17 @@ func RegisterRoutes(r *gin.Engine) {
 		api.POST("/register", handlers.Register)
 		api.GET("/listings", handlers.GetListings)
 		api.GET("/listings/:id", handlers.GetListingByID)
-		// Old chat routes removed - using conversation-based system now
+
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{
+			protected.POST("/bid", handlers.BidHandler)
 			protected.POST("/forget", handlers.ChangePassowrd)
 			protected.GET("/me", handlers.GetMe)
 			protected.POST("/listings", handlers.CreateListing)
 			protected.PUT("/listings/:id", handlers.UpdateListing)
 			protected.DELETE("/listings/:id", handlers.DeleteListing)
 			protected.POST("/upload", handlers.UploadImage)
-			// Old WebSocket chat route removed - using conversation-based system now
 			protected.POST("/conversations", handlers.GetOrCreateConversation)
 			protected.GET("/conversations", handlers.GetConversationsForUser)
 			protected.GET("/conversations/:conversationId/messages", handlers.GetMessagesForConversation)

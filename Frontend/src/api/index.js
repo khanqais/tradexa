@@ -43,6 +43,7 @@ export const uploadImage = (file) => {
 
 export const getChatHistory = (listingId) => api.get(`/chat/${listingId}/history`);
 
+export const createBid = (data) => api.post('/bid', data);
 
 export const createChatSocket = (listingId) => {
   const token = localStorage.getItem('tradexa_token');

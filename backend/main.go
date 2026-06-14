@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -19,12 +18,11 @@ func main() {
 	}
 	config.ConnectDB()
 	config.ConnectCloudinary()
-	config.DB.AutoMigrate(&models.User{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{})
+	config.DB.AutoMigrate(&models.User{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{})
 	r := gin.Default()
 
-	// Setup CORS before routes
 	devOrigins := []string{"http://localhost:3000", "http://127.0.0.1:3000"}
-	prodOrigin := os.Getenv("FRONTEND_URL") // Set in .env for production
+	prodOrigin := os.Getenv("FRONTEND_URL")
 	if prodOrigin != "" {
 		devOrigins = append(devOrigins, prodOrigin)
 	}

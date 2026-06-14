@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap, Package, AlertTriangle, MessageSquare,
   Pencil, Trash2, Clock, ShieldCheck,
 } from 'lucide-react';
-import { getListingById, deleteListing, createConversation } from '../api';
+import { getListingById, deleteListing, createConversation, createBid } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Spinner } from '../components/Spinner';
 import './ListingDetailPage.css';
 
 function formatPrice(price) {
   return new Intl.NumberFormat('en-US', {
-    style: 'currency', currency: 'USD',
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(price);
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price || 0);
 }
 
 function timeLeft(endDate) {
@@ -35,34 +37,44 @@ export default function ListingDetailPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
 
-  const [listing, setListing]   = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const [listing, setListing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [bidLoading, setBidLoading] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [currentBid, setCurrentBid] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  // Countdown timer
   const [countdown, setCountdown] = useState('');
+  const [bidSuccess, setBidSuccess] = useState('');
 
-  // ── Fetch listing ──
   useEffect(() => {
     const fetchListing = async () => {
       setLoading(true);
       setError(null);
       try {
         const res = await getListingById(id);
-        setListing(res.data.listing);
+        const fetchedListing = res.data.listing;
+        setListing(fetchedListing);
+
+        const initialBid =
+          fetchedListing.current_bid ??
+          fetchedListing.highest_bid ??
+          fetchedListing.latest_bid?.amount ??
+          null;
+
+        setCurrentBid(initialBid);
       } catch {
         setError('Listing not found or server unavailable.');
       } finally {
         setLoading(false);
       }
     };
+
     fetchListing();
   }, [id]);
 
-  // ── Countdown timer ──
   useEffect(() => {
     if (!listing?.auction_ends_at || listing.type !== 'auction') return;
     const update = () => setCountdown(timeLeft(listing.auction_ends_at));
@@ -71,12 +83,18 @@ export default function ListingDetailPage() {
     return () => clearInterval(interval);
   }, [listing]);
 
-  // ── Start / open conversation ──
   const handleChat = async () => {
-    if (!isAuthenticated) { navigate('/auth'); return; }
+    if (!isAuthenticated) {
+      navigate('/auth');
+      return;
+    }
+
     setChatLoading(true);
     try {
-      const res = await createConversation({ listing_id: listing.id, buyer_id: user.id });
+      const res = await createConversation({
+        listing_id: listing.id,
+        buyer_id: user.id,
+      });
       navigate(`/conversations/${res.data.conversation.id}`);
     } catch (err) {
       console.error('Error starting conversation:', err);
@@ -86,7 +104,48 @@ export default function ListingDetailPage() {
     }
   };
 
-  // ── Delete listing ──
+  const BidFunc = async () => {
+    if (!isAuthenticated) {
+      navigate('/auth');
+      return;
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      alert('Please enter a valid bid amount');
+      return;
+    }
+
+    setBidLoading(true);
+    setBidSuccess('');
+
+    try {
+      const res = await createBid({
+        listing_id: listing.id,
+        amount: Number(amount),
+      });
+
+      const bid = res.data.bid;
+      setCurrentBid(Number(bid.amount));
+      setListing((prev) =>
+        prev
+          ? {
+              ...prev,
+              highest_bid: Number(bid.amount),
+            }
+          : prev
+      );
+      setBidSuccess(`Your bid of ${formatPrice(bid.amount)} was placed successfully.`);
+      setAmount('');
+      console.log('Bid placed:', res.data);
+    } catch (err) {
+      const errorMsg = err?.response?.data?.error || 'Failed to place bid. Please try again.';
+      alert(errorMsg);
+      console.error('Bid error:', err);
+    } finally {
+      setBidLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!window.confirm('Delete this listing? This cannot be undone.')) return;
     setDeleting(true);
@@ -99,7 +158,6 @@ export default function ListingDetailPage() {
     }
   };
 
-  // ── Render ──
   if (loading) {
     return (
       <div className="detail-loading">
@@ -121,11 +179,13 @@ export default function ListingDetailPage() {
   }
 
   const isAuction = listing.type === 'auction';
-  const isOwner   = listing && user && listing.seller_id === user.id;
+  const isOwner = listing && user && listing.seller_id === user.id;
+  const liveBid = currentBid ?? null;
+  const minimumNextBid = liveBid ? liveBid + 1 : Number(listing.price);
+  const hasLiveBid = liveBid !== null;
 
   return (
     <div className="detail container">
-      {/* Breadcrumb */}
       <div className="detail__breadcrumb">
         <Link to="/" className="detail__breadcrumb-link">Market</Link>
         <span>›</span>
@@ -141,30 +201,26 @@ export default function ListingDetailPage() {
       </div>
 
       <div className="detail__layout">
-        {/* ── Left: Listing info ── */}
         <motion.div
           className="detail__main"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          {/* Image Gallery */}
           <div className="detail__gallery">
-            {/* Main Image */}
             <div className="detail__img-wrap">
               {listing.images?.[currentImageIndex]?.url || listing.images?.[0]?.url || listing.image_url ? (
-                <img 
-                  src={listing.images?.[currentImageIndex]?.url || listing.images?.[0]?.url || listing.image_url} 
-                  alt={listing.title} 
-                  className="detail__img" 
+                <img
+                  src={listing.images?.[currentImageIndex]?.url || listing.images?.[0]?.url || listing.image_url}
+                  alt={listing.title}
+                  className="detail__img"
                 />
               ) : (
                 <div className="detail__img-placeholder">
                   <Package size={48} strokeWidth={1} />
                 </div>
               )}
-              
-              {/* Type badge */}
+
               <div className="detail__img-badge">
                 {isAuction ? (
                   <span className="tag tag--auction">
@@ -178,19 +234,19 @@ export default function ListingDetailPage() {
                 {listing.is_sold && <span className="tag tag--sold">Sold</span>}
               </div>
 
-              {/* Image counter */}
               {listing.images && listing.images.length > 1 && (
                 <div className="detail__img-counter">
                   {currentImageIndex + 1} / {listing.images.length}
                 </div>
               )}
 
-              {/* Navigation arrows */}
               {listing.images && listing.images.length > 1 && (
                 <>
                   <button
                     className="detail__img-nav detail__img-nav--prev"
-                    onClick={() => setCurrentImageIndex((idx) => (idx - 1 + listing.images.length) % listing.images.length)}
+                    onClick={() =>
+                      setCurrentImageIndex((idx) => (idx - 1 + listing.images.length) % listing.images.length)
+                    }
                     aria-label="Previous image"
                   >
                     ‹
@@ -206,7 +262,6 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            {/* Thumbnails */}
             {listing.images && listing.images.length > 1 && (
               <div className="detail__thumbnails">
                 {listing.images.map((image, idx) => (
@@ -223,14 +278,13 @@ export default function ListingDetailPage() {
             )}
           </div>
 
-          {/* Info */}
           <div className="detail__info">
             {listing.category && (
               <span className="detail__category">{listing.category}</span>
             )}
+
             <h1 className="detail__title">{listing.title}</h1>
 
-            {/* Auction countdown */}
             {isAuction && countdown && !listing.is_sold && (
               <div className="detail__countdown">
                 <span className="live-dot" />
@@ -240,7 +294,6 @@ export default function ListingDetailPage() {
               </div>
             )}
 
-            {/* Price block */}
             <div className="detail__price-block">
               <div className="detail__price-section">
                 <span className="detail__price-label">
@@ -250,6 +303,27 @@ export default function ListingDetailPage() {
                   {formatPrice(listing.price)}
                 </span>
               </div>
+
+              {isAuction && (
+                <motion.div
+                  className="detail__price-section"
+                  key={liveBid ?? 'no-bid'}
+                  initial={{ opacity: 0.6, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <span className="detail__price-label">
+                    {hasLiveBid ? 'Current Bid' : 'Current Bid'}
+                  </span>
+                  <span
+                    className="detail__price price-display"
+                    style={{ color: hasLiveBid ? '#f59e0b' : '#94a3b8' }}
+                  >
+                    {hasLiveBid ? formatPrice(liveBid) : 'No bids yet'}
+                  </span>
+                </motion.div>
+              )}
+
               {listing.reserve_price > 0 && (
                 <div className="detail__price-section">
                   <span className="detail__price-label">Reserve</span>
@@ -260,32 +334,76 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            {/* CTA — only shown to non-owners */}
-            {!listing.is_sold && !isOwner && (
+            {!listing.is_sold && !isOwner && listing.type === 'auction' && (
+              <div className="detail__bid-section">
+                <label className="detail__bid-label">
+                  Your Bid
+                  <span style={{ marginLeft: '0.5rem', color: '#94a3b8', fontWeight: 500 }}>
+                    Min: {formatPrice(minimumNextBid)}
+                  </span>
+                </label>
+
+                <div className="detail__bid-input-group">
+                  <span className="detail__bid-currency">$</span>
+                  <input
+                    type="number"
+                    className="detail__bid-input"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder={`${minimumNextBid}`}
+                    min={minimumNextBid}
+                  />
+                </div>
+
+                <button
+                  className="btn btn--amber btn--lg detail__cta-btn"
+                  onClick={BidFunc}
+                  disabled={bidLoading}
+                >
+                  {bidLoading && <Zap size={16} strokeWidth={2} />}
+                  {bidLoading ? 'Placing Bid...' : hasLiveBid ? 'Place Higher Bid' : 'Place First Bid'}
+                </button>
+
+                <AnimatePresence mode="wait">
+                  {bidSuccess && (
+                    <motion.p
+                      key={bidSuccess}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25 }}
+                      style={{
+                        marginTop: '0.75rem',
+                        fontSize: '0.875rem',
+                        color: '#10b981',
+                        textAlign: 'center',
+                        fontWeight: '500',
+                      }}
+                    >
+                      ✓ {bidSuccess}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {!listing.is_sold && !isOwner && listing.type !== 'auction' && (
               <div className="detail__cta">
                 <button
                   className="btn btn--amber btn--lg detail__cta-btn"
                   onClick={handleChat}
-                  disabled={chatLoading}
                 >
-                  {chatLoading ? (
-                    <Spinner size="sm" />
-                  ) : isAuction ? (
-                    <><Zap size={16} strokeWidth={2.5} /> Place Bid via Chat</>
-                  ) : (
-                    <><MessageSquare size={16} strokeWidth={2} /> Contact Seller</>
-                  )}
+                  {chatLoading && <MessageSquare size={16} strokeWidth={2} />}
+                  Contact Seller
                 </button>
               </div>
             )}
 
-            {/* Description */}
             <div className="detail__desc-wrap">
               <h4 className="detail__desc-heading">Description</h4>
               <p className="detail__desc">{listing.description}</p>
             </div>
 
-            {/* Seller */}
             {listing.seller && (
               <div className="detail__seller">
                 <span className="detail__seller-avatar">
@@ -298,25 +416,28 @@ export default function ListingDetailPage() {
               </div>
             )}
 
-            {/* Meta */}
             <div className="detail__meta-row">
               <span className="detail__meta-item">
                 <span className="detail__meta-key">Listed</span>
                 {new Date(listing.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric', month: 'short', day: 'numeric',
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
                 })}
               </span>
+
               {isAuction && listing.auction_ends_at && (
                 <span className="detail__meta-item">
                   <span className="detail__meta-key">Ends</span>
                   {new Date(listing.auction_ends_at).toLocaleDateString('en-US', {
-                    year: 'numeric', month: 'short', day: 'numeric',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
                   })}
                 </span>
               )}
             </div>
 
-            {/* Owner actions */}
             {isOwner && (
               <div className="detail__owner-actions">
                 <div className="divider" />
