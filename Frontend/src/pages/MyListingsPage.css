@@ -1,5 +1,7 @@
 .mylistings {
-  padding: var(--sp-8) 0 var(--sp-20);
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-6) var(--sp-20);
 }
 
 /* Header */

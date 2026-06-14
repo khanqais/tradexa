@@ -315,3 +315,9 @@
   color: var(--text-tertiary);
   cursor: not-allowed;
 }
+
+@media (max-width: 600px) {
+  .conversation-detail { padding: 0 var(--sp-4); height: calc(100vh - 60px); }
+  .message { max-width: 85%; }
+  .conversation-detail__title { font-size: 0.9375rem; }
+}

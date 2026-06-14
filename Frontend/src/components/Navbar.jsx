@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageSquare, LogOut, Plus, X } from 'lucide-react';
+import { MessageSquare, LogOut, Plus, X, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import './Navbar.css';
@@ -10,6 +10,7 @@ export default function Navbar() {
   const { unreadCount, unreadConversations, clearUnread } = useNotifications();
   const navigate = useNavigate();
   const [msgOpen, setMsgOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   const handleLogout = () => {
@@ -144,7 +145,27 @@ export default function Navbar() {
             </>
           )}
         </div>
+        
+        <button className="navbar__mobile-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
+
+      {mobileMenuOpen && (
+        <nav className="navbar__mobile-menu">
+          <Link to="/" className="navbar__mobile-link" onClick={() => setMobileMenuOpen(false)}>Market</Link>
+          <Link to="/auctions" className="navbar__mobile-link" onClick={() => setMobileMenuOpen(false)}>
+            Live Auctions
+          </Link>
+          <Link to="/buy-products" className="navbar__mobile-link" onClick={() => setMobileMenuOpen(false)}>Buy Products</Link>
+          {!isAuthenticated && (
+            <div className="navbar__mobile-auth">
+              <Link to="/auth" className="btn btn--ghost" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+              <Link to="/auth?mode=register" className="btn btn--primary" onClick={() => setMobileMenuOpen(false)}>Join</Link>
+            </div>
+          )}
+        </nav>
+      )}
 
       <div className="navbar__accent" />
     </header>

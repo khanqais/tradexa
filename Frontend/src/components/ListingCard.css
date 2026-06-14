@@ -194,3 +194,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+@media (max-width: 768px) {
+  .listing-card__body { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+  .listing-card__title { font-size: 1rem; }
+  .listing-card__desc { font-size: 0.75rem; }
+  .listing-card__price { font-size: 1rem; }
+}

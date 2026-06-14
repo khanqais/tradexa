@@ -375,3 +375,17 @@
   font-size: 0.875rem;
   color: var(--text-secondary);
 }
+
+@media (max-width: 768px) {
+  .home__hero { min-height: 400px; padding: var(--sp-12) 0 var(--sp-8); }
+  .home__hero-title { font-size: 2.5rem; }
+  .home__hero-subtitle { font-size: 0.9375rem; margin-bottom: var(--sp-6); }
+  .home__stats-inner { gap: var(--sp-4); justify-content: space-around; }
+  .home__stat-value { font-size: 1.25rem; }
+  .home__stat-divider { display: none; }
+  .home__toolbar { flex-direction: column; align-items: stretch; gap: var(--sp-3); }
+  .home__search { width: 100%; }
+  .home__filters { overflow-x: auto; padding-bottom: 4px; }
+  .home__categories { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .home__categories::-webkit-scrollbar { display: none; }
+}

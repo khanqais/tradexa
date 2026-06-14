@@ -1,5 +1,12 @@
 .create {
-  padding: var(--sp-8) 0 var(--sp-20);
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-6) var(--sp-20);
+}
+
+@media (max-width: 768px) {
+  .create { padding: var(--sp-4) 0 var(--sp-12); }
+  .create__title { font-size: 2rem; }
 }
 
 .create__header {
