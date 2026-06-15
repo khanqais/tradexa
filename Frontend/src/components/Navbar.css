@@ -97,6 +97,36 @@
 
 .navbar__user-btn:hover { opacity: 0.8; }
 
+.navbar__avatar-wrap {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.navbar__avatar-wrap:hover .navbar__avatar-overlay {
+  opacity: 1;
+}
+
+.navbar__avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  color: #fff;
+  font-size: 0;
+}
+
 .navbar__avatar {
   width: 30px;
   height: 30px;
@@ -109,6 +139,17 @@
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--verd-light);
+  flex-shrink: 0;
+}
+
+.navbar__avatar--img {
+  object-fit: cover;
+  border: 2px solid var(--verd);
+  background: transparent;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: block;
 }
 
 .navbar__username {
@@ -119,6 +160,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
+  transition: color var(--t-fast);
+}
+
+.navbar__username:hover {
+  color: var(--text-primary);
 }
 
 .navbar__accent {

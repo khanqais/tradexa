@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+export const API_BASE = import.meta.env.VITE_BACKEND_URL || '/api';
 
 
 const WS_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -21,6 +21,7 @@ api.interceptors.request.use((config) => {
 
 export const login    = (data) => api.post('/login', data);
 export const register = (data) => api.post('/register', data);
+export const loginWithGoogle = (token) => api.post('/auth/google', { token });
 export const getMe    = ()     => api.get('/me');
 
 export const getConversations = () => api.get('/conversations');
@@ -37,6 +38,14 @@ export const uploadImage = (file) => {
   const form = new FormData();
   form.append('image', file);
   return api.post('/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const uploadAvatar = (file) => {
+  const form = new FormData();
+  form.append('image', file);
+  return api.post('/me/avatar', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };

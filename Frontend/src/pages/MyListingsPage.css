@@ -123,12 +123,21 @@
   transition: background var(--t-fast);
 }
 
-.mylistings__row:last-child { border-bottom: none; }
+.mylistings__row:last-child {
+  border-bottom: none;
+}
 
-.mylistings__row:hover { background: rgba(255, 255, 255, 0.02); }
+.mylistings__row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
 
-.mylistings__row--sold { opacity: 0.6; }
-.mylistings__row--sold:hover { opacity: 0.8; }
+.mylistings__row--sold {
+  opacity: 0.6;
+}
+
+.mylistings__row--sold:hover {
+  opacity: 0.8;
+}
 
 /* Row item */
 .mylistings__row-item {
@@ -184,7 +193,9 @@
   transition: color var(--t-fast);
 }
 
-.mylistings__row-title:hover { color: var(--verd-light); }
+.mylistings__row-title:hover {
+  color: var(--verd-light);
+}
 
 .mylistings__row-cat {
   font-size: 0.6875rem;
@@ -219,25 +230,27 @@
 
 /* Responsive */
 @media (max-width: 800px) {
+
   .mylistings__table-head,
   .mylistings__row {
     grid-template-columns: 1fr 80px 100px 100px;
   }
 
   .mylistings__table-head span:nth-child(4),
-  .mylistings__row > div:nth-child(4) {
+  .mylistings__row>div:nth-child(4) {
     display: none;
   }
 }
 
 @media (max-width: 600px) {
+
   .mylistings__table-head,
   .mylistings__row {
     grid-template-columns: 1fr 80px 80px;
   }
 
   .mylistings__table-head span:nth-child(3),
-  .mylistings__row > div:nth-child(3) {
+  .mylistings__row>div:nth-child(3) {
     display: none;
   }
 }

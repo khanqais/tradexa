@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-import { login as apiLogin, register as apiRegister } from '../api';
+import { login as apiLogin, register as apiRegister, loginWithGoogle as apiLoginWithGoogle, uploadAvatar as apiUploadAvatar } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -45,6 +45,16 @@ export function AuthProvider({ children }) {
     return u;
   }, []);
 
+  const googleLogin = useCallback(async (googleToken) => {
+    const res = await apiLoginWithGoogle(googleToken);
+    const { token: t, user: u } = res.data;
+    localStorage.setItem('tradexa_token', t);
+    localStorage.setItem('tradexa_user', JSON.stringify(u));
+    setToken(t);
+    setUser(u);
+    return u;
+  }, []);
+
   const register = useCallback(async (name, email, password, role) => {
     const res = await apiRegister({ name, email, password, role });
     return res.data.user;
@@ -57,10 +67,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updatePicture = async (file) => {
+    const res = await apiUploadAvatar(file);
+    const picture = res.data.picture;
+    const updatedUser = { ...JSON.parse(localStorage.getItem('tradexa_user') || '{}'), picture };
+    localStorage.setItem('tradexa_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    return picture;
+  };
+
   const isAuthenticated = !!token && !!user && !isTokenExpired(token);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout, googleLogin, updatePicture }}>
       {children}
     </AuthContext.Provider>
   );

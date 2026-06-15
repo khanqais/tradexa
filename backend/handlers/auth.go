@@ -1,12 +1,20 @@
 package handlers
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"google.golang.org/api/idtoken"
+
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -127,13 +135,60 @@ func Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 		"user": gin.H{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-			"role":  user.Role,
+			"id":      user.ID,
+			"name":    user.Name,
+			"email":   user.Email,
+			"role":    user.Role,
+			"picture": user.Avatar,
 		},
 	})
 
+}
+func UploadAvatar(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "image file is required"})
+		return
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true}
+	if !allowed[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only jpg, jpeg, png, webp allowed"})
+		return
+	}
+	if header.Size > 3*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file must be under 3MB"})
+		return
+	}
+
+	uploadResult, err := config.Cloudinary.Upload.Upload(
+		context.Background(),
+		file,
+		uploader.UploadParams{
+			Folder:         "tradexa/avatars",
+			Transformation: "c_fill,w_200,h_200,q_auto,f_auto",
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload avatar"})
+		return
+	}
+
+	var user models.User
+	if err := config.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+	user.Avatar = uploadResult.SecureURL
+	config.DB.Save(&user)
+
+	c.JSON(http.StatusOK, gin.H{
+		"picture": user.Avatar,
+	})
 }
 func ChangePassowrd(c *gin.Context) {
 	var input ChangePassowrdInput
@@ -176,5 +231,93 @@ func GetMe(c *gin.Context) {
 		"user_id": userID,
 		"email":   email,
 		"role":    role,
+	})
+}
+
+type GoogleLoginInput struct {
+	Token string `json:"token" binding:"required"`
+}
+
+func GoogleLogin(c *gin.Context) {
+	var input GoogleLoginInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	payload, err := idtoken.Validate(context.Background(), input.Token, clientID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid google token"})
+		return
+	}
+
+	email, ok := payload.Claims["email"].(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email not provided by google"})
+		return
+	}
+
+	name, _ := payload.Claims["name"].(string)
+	picture, _ := payload.Claims["picture"].(string)
+
+	var user models.User
+	normalizedEmail := strings.TrimSpace(strings.ToLower(email))
+
+	err = config.DB.Where("LOWER(email) = ?", normalizedEmail).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Create user
+			b := make([]byte, 16)
+			rand.Read(b)
+			randomPassword := hex.EncodeToString(b)
+			hashpassword, _ := bcrypt.GenerateFromPassword([]byte(randomPassword), bcrypt.DefaultCost)
+
+			user = models.User{
+				Name:     name,
+				Email:    normalizedEmail,
+				Password: string(hashpassword),
+				Role:     models.RoleBuyer,
+			}
+			if err := config.DB.Create(&user).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+				return
+			}
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			return
+		}
+	}
+
+	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	if secret == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT_SECRET not configured"})
+		return
+	}
+
+	claims := jwt.MapClaims{
+		"user_id": user.ID,
+		"email":   user.Email,
+		"role":    string(user.Role),
+		"name":    user.Name,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(secret))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": tokenString,
+		"user": gin.H{
+			"id":      user.ID,
+			"name":    user.Name,
+			"email":   user.Email,
+			"role":    user.Role,
+			"picture": picture,
+		},
 	})
 }

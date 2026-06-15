@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import './AuthPage.css';
 
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, googleLogin, isAuthenticated } = useAuth();
 
   const [mode, setMode]     = useState(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [loading, setLoading] = useState(false);
@@ -51,6 +52,23 @@ export default function AuthPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+    try {
+      await googleLogin(credentialResponse.credential);
+      navigate('/');
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Google login failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google Login Failed');
   };
 
   const tabVariants = {
@@ -161,6 +179,16 @@ export default function AuthPage() {
                     <><span className="spinner spinner--sm" /> Signing in…</>
                   ) : 'Sign In →'}
                 </button>
+                <div className="auth-form__divider">
+                  <span>or</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    useOneTap
+                  />
+                </div>
                 <p className="auth-form__switch">
                   No account?{' '}
                   <button type="button" className="auth-form__switch-btn" onClick={() => setMode('register')}>
@@ -243,6 +271,16 @@ export default function AuthPage() {
                     <><span className="spinner spinner--sm" /> Creating account…</>
                   ) : 'Create Account →'}
                 </button>
+                <div className="auth-form__divider">
+                  <span>or</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    text="signup_with"
+                  />
+                </div>
                 <p className="auth-form__switch">
                   Already have an account?{' '}
                   <button type="button" className="auth-form__switch-btn" onClick={() => setMode('login')}>

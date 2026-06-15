@@ -4,6 +4,12 @@
   min-height: calc(100vh - 64px);
 }
 
+.page--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ── Hero ── */
 .hero {
   padding: var(--sp-16) 0 var(--sp-12);

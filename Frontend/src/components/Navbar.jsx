@@ -1,21 +1,37 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageSquare, LogOut, Plus, X, Menu } from 'lucide-react';
+import { MessageSquare, LogOut, Plus, X, Menu, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import './Navbar.css';
 
 export default function Navbar() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, updatePicture } = useAuth();
   const { unreadCount, unreadConversations, clearUnread } = useNotifications();
   const navigate = useNavigate();
   const [msgOpen, setMsgOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const dropdownRef = useRef(null);
+  const avatarInputRef = useRef(null);
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      await updatePicture(file);
+    } catch {
+      alert('Failed to upload avatar. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
   };
 
   const handleMsgClick = () => {
@@ -129,9 +145,39 @@ export default function Navbar() {
                 List Item
               </Link>
 
-              <Link to="/my-listings" className="navbar__user-btn">
-                <span className="navbar__avatar">{user.name?.[0]?.toUpperCase()}</span>
-                <span className="navbar__username">{user.name}</span>
+              <button
+                className="navbar__avatar-wrap"
+                onClick={() => avatarInputRef.current?.click()}
+                title="Change profile picture"
+              >
+                {user.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    className="navbar__avatar navbar__avatar--img"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="navbar__avatar">{user.name?.[0]?.toUpperCase()}</span>
+                )}
+                <span className="navbar__avatar-overlay">
+                  {avatarUploading ? (
+                    <span className="spinner spinner--sm" />
+                  ) : (
+                    <Camera size={12} strokeWidth={2} />
+                  )}
+                </span>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={handleAvatarChange}
+                />
+              </button>
+
+              <Link to="/my-listings" className="navbar__username">
+                {user.name}
               </Link>
 
               <button className="navbar__signout" onClick={handleLogout} title="Sign out">

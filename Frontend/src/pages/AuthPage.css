@@ -237,3 +237,23 @@
   color: var(--text-tertiary);
   text-align: center;
 }
+
+.auth-form__divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  margin: var(--sp-2) 0;
+}
+
+.auth-form__divider::before,
+.auth-form__divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--ink-border);
+}
+
+.auth-form__divider span {
+  padding: 0 var(--sp-3);
+}

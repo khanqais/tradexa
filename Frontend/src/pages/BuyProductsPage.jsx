@@ -53,8 +53,8 @@ export default function BuyProductsPage() {
 
   if (loading && listings.length === 0) {
     return (
-      <div className="page">
-        <Spinner />
+      <div className="page page--loading">
+        <Spinner size="lg" />
       </div>
     );
   }

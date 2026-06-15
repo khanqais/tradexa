@@ -5,7 +5,7 @@ import {
   Zap, Package, AlertTriangle, MessageSquare,
   Pencil, Trash2, Clock, ShieldCheck,
 } from 'lucide-react';
-import { getListingById, deleteListing, createConversation, createBid } from '../api';
+import { API_BASE, getListingById, deleteListing, createConversation, createBid } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Spinner } from '../components/Spinner';
 import './ListingDetailPage.css';
@@ -87,7 +87,7 @@ export default function ListingDetailPage() {
   useEffect(() => {
     if (!listing || listing.type !== 'auction') return;
 
-    const eventSource = new EventSource(`http://localhost:8080/api/stream/${id}`);
+    const eventSource = new EventSource(`${API_BASE}/stream/${id}`);
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
