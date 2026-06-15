@@ -19,7 +19,7 @@ func main() {
 	}
 	config.ConnectDB()
 	config.ConnectCloudinary()
-	config.DB.AutoMigrate(&models.User{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{})
+	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{})
 	r := gin.Default()
 
 	devOrigins := []string{"http://localhost:3000", "http://127.0.0.1:3000"}

@@ -8,7 +8,7 @@ import './AuthPage.css';
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login, register, googleLogin, isAuthenticated } = useAuth();
+  const { login, register, sendOtp, googleLogin, isAuthenticated } = useAuth();
 
   const [mode, setMode]     = useState(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [loading, setLoading] = useState(false);
@@ -16,6 +16,16 @@ export default function AuthPage() {
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [regData, setRegData] = useState({ name: '', email: '', password: '', role: 'buyer' });
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   useEffect(() => {
     if (isAuthenticated) navigate('/', { replace: true });
@@ -35,16 +45,39 @@ export default function AuthPage() {
     }
   };
 
+  const handleSendOtp = async (e) => {
+    e?.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await sendOtp(regData.email);
+      setOtpSent(true);
+      setCountdown(60);
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to send verification code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    if (regData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!otpSent) {
+      if (regData.password.length < 6) {
+        setError('Password must be at least 6 characters.');
+        return;
+      }
+      await handleSendOtp();
+      return;
+    }
+    if (!otp || otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP.');
       return;
     }
     setLoading(true);
     try {
-      await register(regData.name, regData.email, regData.password, regData.role);
+      await register(regData.name, regData.email, regData.password, regData.role, otp);
       await login(regData.email, regData.password);
       navigate('/');
     } catch (err) {
@@ -207,70 +240,129 @@ export default function AuthPage() {
                 exit="exit"
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className="auth-form__field">
-                  <label className="form-label">Full Name</label>
-                  <input
-                    className="form-input"
-                    type="text"
-                    placeholder="Your name"
-                    value={regData.name}
-                    onChange={e => setRegData(d => ({ ...d, name: e.target.value }))}
-                    required
-                    minLength={2}
-                    autoFocus
-                  />
-                </div>
-                <div className="auth-form__field">
-                  <label className="form-label">Email</label>
-                  <input
-                    className="form-input"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={regData.email}
-                    onChange={e => setRegData(d => ({ ...d, email: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="auth-form__field">
-                  <label className="form-label">Password</label>
-                  <input
-                    className="form-input"
-                    type="password"
-                    placeholder="At least 6 characters"
-                    value={regData.password}
-                    onChange={e => setRegData(d => ({ ...d, password: e.target.value }))}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <div className="auth-form__field">
-                  <label className="form-label">I want to</label>
-                  <div className="auth-role-picker">
-                    {[
-                      { val: 'buyer',  label: '🛒 Buy items',  desc: 'Browse & bid' },
-                      { val: 'seller', label: '🏷 Sell items', desc: 'List & auction' },
-                    ].map(opt => (
+                {!otpSent ? (
+                  <>
+                    <div className="auth-form__field">
+                      <label className="form-label">Full Name</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        placeholder="Your name"
+                        value={regData.name}
+                        onChange={e => setRegData(d => ({ ...d, name: e.target.value }))}
+                        required
+                        minLength={2}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="auth-form__field">
+                      <label className="form-label">Email</label>
+                      <input
+                        className="form-input"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={regData.email}
+                        onChange={e => setRegData(d => ({ ...d, email: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="auth-form__field">
+                      <label className="form-label">Password</label>
+                      <input
+                        className="form-input"
+                        type="password"
+                        placeholder="At least 6 characters"
+                        value={regData.password}
+                        onChange={e => setRegData(d => ({ ...d, password: e.target.value }))}
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    <div className="auth-form__field">
+                      <label className="form-label">I want to</label>
+                      <div className="auth-role-picker">
+                        {[
+                          { val: 'buyer',  label: '🛒 Buy items',  desc: 'Browse & bid' },
+                          { val: 'seller', label: '🏷 Sell items', desc: 'List & auction' },
+                        ].map(opt => (
+                          <button
+                            key={opt.val}
+                            type="button"
+                            className={`auth-role-btn ${regData.role === opt.val ? 'auth-role-btn--active' : ''}`}
+                            onClick={() => setRegData(d => ({ ...d, role: opt.val }))}
+                          >
+                            <span className="auth-role-btn__label">{opt.label}</span>
+                            <span className="auth-role-btn__desc">{opt.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn btn--primary auth-form__submit"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <><span className="spinner spinner--sm" /> Sending code…</>
+                      ) : 'Send Verification Code →'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ marginBottom: '1.25rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5, textAlign: 'center' }}>
+                      We have sent a verification code to <strong>{regData.email}</strong>. Please enter the 6-digit OTP code below.
+                    </p>
+                    <div className="auth-form__field">
+                      <label className="form-label" style={{ textAlign: 'center', display: 'block' }}>OTP Verification Code</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        placeholder="123456"
+                        maxLength={6}
+                        value={otp}
+                        onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                        required
+                        autoFocus
+                        style={{ textAlign: 'center', letterSpacing: '8px', fontSize: '1.5rem', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                       <button
-                        key={opt.val}
                         type="button"
-                        className={`auth-role-btn ${regData.role === opt.val ? 'auth-role-btn--active' : ''}`}
-                        onClick={() => setRegData(d => ({ ...d, role: opt.val }))}
+                        className="btn btn--secondary"
+                        onClick={() => setOtpSent(false)}
+                        style={{ flex: 1, padding: '0.75rem' }}
                       >
-                        <span className="auth-role-btn__label">{opt.label}</span>
-                        <span className="auth-role-btn__desc">{opt.desc}</span>
+                        ← Back
                       </button>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="btn btn--primary auth-form__submit"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <><span className="spinner spinner--sm" /> Creating account…</>
-                  ) : 'Create Account →'}
-                </button>
+                      <button
+                        type="submit"
+                        className="btn btn--primary"
+                        disabled={loading}
+                        style={{ flex: 2, padding: '0.75rem' }}
+                      >
+                        {loading ? (
+                          <><span className="spinner spinner--sm" /> Verifying…</>
+                        ) : 'Verify & Register →'}
+                      </button>
+                    </div>
+                    <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+                      {countdown > 0 ? (
+                        <p style={{ opacity: 0.7, fontSize: '0.9rem' }}>Resend code in {countdown}s</p>
+                      ) : (
+                        <button
+                          type="button"
+                          className="auth-form__switch-btn"
+                          onClick={handleSendOtp}
+                          disabled={loading}
+                          style={{ fontSize: '0.9rem', textDecoration: 'underline' }}
+                        >
+                          Resend Verification Code
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
                 <div className="auth-form__divider">
                   <span>or</span>
                 </div>
@@ -283,7 +375,7 @@ export default function AuthPage() {
                 </div>
                 <p className="auth-form__switch">
                   Already have an account?{' '}
-                  <button type="button" className="auth-form__switch-btn" onClick={() => setMode('login')}>
+                  <button type="button" className="auth-form__switch-btn" onClick={() => { setMode('login'); setOtpSent(false); }}>
                     Sign in
                   </button>
                 </p>

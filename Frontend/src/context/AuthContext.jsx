@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-import { login as apiLogin, register as apiRegister, loginWithGoogle as apiLoginWithGoogle, uploadAvatar as apiUploadAvatar } from '../api';
+import { login as apiLogin, register as apiRegister, sendOtp as apiSendOtp, loginWithGoogle as apiLoginWithGoogle, uploadAvatar as apiUploadAvatar } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -55,9 +55,13 @@ export function AuthProvider({ children }) {
     return u;
   }, []);
 
-  const register = useCallback(async (name, email, password, role) => {
-    const res = await apiRegister({ name, email, password, role });
+  const register = useCallback(async (name, email, password, role, otp) => {
+    const res = await apiRegister({ name, email, password, role, otp });
     return res.data.user;
+  }, []);
+
+  const sendOtp = useCallback(async (email) => {
+    await apiSendOtp(email);
   }, []);
 
   const logout = useCallback(() => {
@@ -79,7 +83,7 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!token && !!user && !isTokenExpired(token);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout, googleLogin, updatePicture }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, sendOtp, logout, googleLogin, updatePicture }}>
       {children}
     </AuthContext.Provider>
   );

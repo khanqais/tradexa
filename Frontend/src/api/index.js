@@ -21,6 +21,7 @@ api.interceptors.request.use((config) => {
 
 export const login    = (data) => api.post('/login', data);
 export const register = (data) => api.post('/register', data);
+export const sendOtp  = (email) => api.post('/auth/send-otp', { email });
 export const loginWithGoogle = (token) => api.post('/auth/google', { token });
 export const getMe    = ()     => api.get('/me');
 

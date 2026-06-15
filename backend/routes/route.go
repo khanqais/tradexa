@@ -16,6 +16,7 @@ func RegisterRoutes(r *gin.Engine) {
 		})
 		api.POST("/login", handlers.Login)
 		api.POST("/register", handlers.Register)
+		api.POST("/auth/send-otp", handlers.SendOTP)
 		api.POST("/auth/google", handlers.GoogleLogin)
 		api.GET("/listings", handlers.GetListings)
 		api.GET("/listings/:id", handlers.GetListingByID)
