@@ -163,15 +163,36 @@ func GetListings(c *gin.Context) {
 		return
 	}
 
+	// Collect auction listing IDs for a batch highest-bid lookup
+	var auctionIDs []uint
 	for i := range listings {
 		listings[i].Seller.Password = ""
 		if listings[i].Type == models.ListingTypeAuction {
-			var highestBid models.Bid
-			if err := config.DB.WithContext(c.Request.Context()).
-				Where("listing_id = ?", listings[i].ID).
-				Order("amount desc").
-				First(&highestBid).Error; err == nil {
-				listings[i].HighestBid = &highestBid.Amount
+			auctionIDs = append(auctionIDs, listings[i].ID)
+		}
+	}
+
+	// Batch fetch highest bids in a single query instead of N+1
+	if len(auctionIDs) > 0 {
+		type highestBidResult struct {
+			ListingID  uint
+			MaxAmount  float64
+		}
+		var results []highestBidResult
+		config.DB.WithContext(c.Request.Context()).
+			Model(&models.Bid{}).
+			Select("listing_id, MAX(amount) as max_amount").
+			Where("listing_id IN ?", auctionIDs).
+			Group("listing_id").
+			Find(&results)
+
+		bidMap := make(map[uint]float64, len(results))
+		for _, r := range results {
+			bidMap[r.ListingID] = r.MaxAmount
+		}
+		for i := range listings {
+			if amt, ok := bidMap[listings[i].ID]; ok {
+				listings[i].HighestBid = &amt
 			}
 		}
 	}
@@ -370,10 +391,31 @@ func BidHandler(c *gin.Context) {
 	}
 	tx.Commit()
 
+	// Anti-snipe: if bid placed within the last 60 seconds, extend auction by 2 minutes
+	if listing.AuctionEndsAt != nil {
+		timeLeft := time.Until(*listing.AuctionEndsAt)
+		if timeLeft > 0 && timeLeft <= 60*time.Second {
+			newEnd := time.Now().Add(2 * time.Minute)
+			config.DB.Model(&listing).Update("auction_ends_at", newEnd)
+			listing.AuctionEndsAt = &newEnd
+
+			extPayload, _ := json.Marshal(map[string]interface{}{
+				"type":               "timer_extended",
+				"listing_id":         listing.ID,
+				"new_auction_ends_at": newEnd,
+			})
+			StreamHub.Broadcast(listing.ID, extPayload)
+		}
+	}
+
+	// Broadcast new bid with current auction_ends_at so frontend always has latest deadline
 	payload := map[string]interface{}{
 		"type":       "new_bid",
 		"listing_id": newBid.ListingID,
 		"amount":     newBid.Amount,
+	}
+	if listing.AuctionEndsAt != nil {
+		payload["auction_ends_at"] = *listing.AuctionEndsAt
 	}
 	messageBytes, err := json.Marshal(payload)
 	if err != nil {

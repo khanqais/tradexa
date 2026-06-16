@@ -179,6 +179,17 @@ export default function AuthPage() {
                 exit="exit"
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               >
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    useOneTap
+                  />
+                </div>
+                <div className="auth-form__divider">
+                  <span>or sign in with email</span>
+                </div>
+
                 <div className="auth-form__field">
                   <label className="form-label">Email</label>
                   <input
@@ -212,17 +223,7 @@ export default function AuthPage() {
                     <><span className="spinner spinner--sm" /> Signing in…</>
                   ) : 'Sign In →'}
                 </button>
-                <div className="auth-form__divider">
-                  <span>or</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={handleGoogleError}
-                    useOneTap
-                  />
-                </div>
-                <p className="auth-form__switch">
+                <p className="auth-form__switch" style={{ marginTop: '1rem' }}>
                   No account?{' '}
                   <button type="button" className="auth-form__switch-btn" onClick={() => setMode('register')}>
                     Create one
@@ -242,6 +243,17 @@ export default function AuthPage() {
               >
                 {!otpSent ? (
                   <>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={handleGoogleError}
+                        text="signup_with"
+                      />
+                    </div>
+                    <div className="auth-form__divider">
+                      <span>or continue with email</span>
+                    </div>
+
                     <div className="auth-form__field">
                       <label className="form-label">Full Name</label>
                       <input
@@ -363,17 +375,7 @@ export default function AuthPage() {
                     </div>
                   </>
                 )}
-                <div className="auth-form__divider">
-                  <span>or</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={handleGoogleError}
-                    text="signup_with"
-                  />
-                </div>
-                <p className="auth-form__switch">
+                <p className="auth-form__switch" style={{ marginTop: '1rem' }}>
                   Already have an account?{' '}
                   <button type="button" className="auth-form__switch-btn" onClick={() => { setMode('login'); setOtpSent(false); }}>
                     Sign in

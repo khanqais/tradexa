@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/khanqais/tradexa/config"
+	"github.com/khanqais/tradexa/handlers"
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/routes"
 )
@@ -19,7 +20,11 @@ func main() {
 	}
 	config.ConnectDB()
 	config.ConnectCloudinary()
-	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{})
+	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{}, &models.Order{})
+	config.RunMigrations(config.DB)
+
+	// Start background auction watcher goroutine
+	go handlers.StartAuctionWatcher(config.DB)
 	r := gin.Default()
 
 	devOrigins := []string{"http://localhost:3000", "http://127.0.0.1:3000"}
@@ -38,5 +43,9 @@ func main() {
 	}))
 
 	routes.RegisterRoutes(r)
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	r.Run(":" + port)
 }

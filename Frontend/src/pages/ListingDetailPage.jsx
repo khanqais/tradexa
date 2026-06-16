@@ -48,7 +48,7 @@ export default function ListingDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [countdown, setCountdown] = useState('');
   const [bidSuccess, setBidSuccess] = useState('');
-
+  const [auctionStatus, setAuctionStatus] = useState(null); // 'sold' | 'reserve_not_met' | null
   useEffect(() => {
     const fetchListing = async () => {
       setLoading(true);
@@ -91,11 +91,33 @@ export default function ListingDetailPage() {
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
+
       if (data.type === 'new_bid') {
         setCurrentBid(Number(data.amount));
+        setListing((prev) => {
+          if (!prev) return prev;
+          const updates = { ...prev, highest_bid: Number(data.amount) };
+          // Update auction_ends_at if the server sent a new one (anti-snipe extension)
+          if (data.auction_ends_at) {
+            updates.auction_ends_at = data.auction_ends_at;
+          }
+          return updates;
+        });
+      }
+
+      if (data.type === 'timer_extended') {
+        // Anti-snipe: timer was extended
         setListing((prev) =>
-          prev ? { ...prev, highest_bid: Number(data.amount) } : prev
+          prev ? { ...prev, auction_ends_at: data.new_auction_ends_at } : prev
         );
+      }
+
+      if (data.type === 'auction_closed') {
+        setAuctionStatus(data.status); // 'sold' or 'reserve_not_met'
+        setListing((prev) =>
+          prev ? { ...prev, is_sold: data.status === 'sold', status: data.status } : prev
+        );
+        setCountdown('Auction ended');
       }
     };
 
@@ -310,7 +332,7 @@ export default function ListingDetailPage() {
 
             <h1 className="detail__title">{listing.title}</h1>
 
-            {isAuction && countdown && !listing.is_sold && (
+            {isAuction && countdown && !listing.is_sold && !auctionStatus && (
               <div className="detail__countdown">
                 <span className="live-dot" />
                 <Clock size={13} strokeWidth={2} />
@@ -318,6 +340,41 @@ export default function ListingDetailPage() {
                 <span className="detail__countdown-value price-display">{countdown}</span>
               </div>
             )}
+
+            <AnimatePresence>
+              {auctionStatus === 'sold' && (
+                <motion.div
+                  className="detail__auction-banner detail__auction-banner--sold"
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <span style={{ fontSize: '1.25rem' }}>🏆</span>
+                  <div>
+                    <strong>Auction Ended — Item Sold!</strong>
+                    <p style={{ margin: '0.25rem 0 0', opacity: 0.85, fontSize: '0.85rem' }}>
+                      The winning bid was {formatPrice(liveBid)}. The winner has been notified.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+              {auctionStatus === 'reserve_not_met' && (
+                <motion.div
+                  className="detail__auction-banner detail__auction-banner--reserve"
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <span style={{ fontSize: '1.25rem' }}>❌</span>
+                  <div>
+                    <strong>Reserve Price Not Met</strong>
+                    <p style={{ margin: '0.25rem 0 0', opacity: 0.85, fontSize: '0.85rem' }}>
+                      The auction has ended but the reserve price was not reached. The item remains unsold.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="detail__price-block">
               <div className="detail__price-section">
@@ -359,7 +416,7 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            {!listing.is_sold && !isOwner && listing.type === 'auction' && (
+            {!listing.is_sold && !isOwner && !auctionStatus && listing.type === 'auction' && (
               <div className="detail__bid-section">
                 <label className="detail__bid-label">
                   Your Bid

@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createNotificationSocket } from "../api";
 import { useAuth } from "./AuthContext";
+import { motion, AnimatePresence } from "framer-motion";
 
 const NotificationsContext = createContext(null);
 
@@ -40,6 +41,15 @@ export function NotificationsProvider({ children }) {
       return [];
     }
   });
+
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((id, message) => {
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 8000);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("tradexa_unread", String(unreadCount));
@@ -121,6 +131,21 @@ export function NotificationsProvider({ children }) {
               data.listing_id,
               data.listing_title,
             );
+          } else if (data.type === "auction_won") {
+            showToast(
+              `auction_${data.listing_id}`,
+              `🏆 You won "${data.title}"! Pay $${data.amount} within 48 hours.`
+            );
+          } else if (data.type === "auction_sold") {
+            showToast(
+              `auction_${data.listing_id}`,
+              `✅ Your item "${data.title}" sold for $${data.amount} to ${data.buyer_name}.`
+            );
+          } else if (data.type === "auction_reserve_not_met") {
+            showToast(
+              `auction_${data.listing_id}`,
+              `❌ Reserve not met for "${data.title}". Item is unsold.`
+            );
           }
         } catch (err) {
           console.log(err.Error);
@@ -159,8 +184,45 @@ export function NotificationsProvider({ children }) {
       }}
     >
       {children}
+
+      <div style={{
+        position: 'fixed',
+        bottom: '24px',
+        right: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        zIndex: 9999,
+        pointerEvents: 'none',
+      }}>
+        <AnimatePresence>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+              style={{
+                background: 'var(--ink-raised)',
+                border: '1px solid var(--ink-border)',
+                color: 'var(--text-primary)',
+                padding: '16px 20px',
+                borderRadius: '8px',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                pointerEvents: 'auto',
+                maxWidth: '350px',
+                fontSize: '0.9rem',
+                lineHeight: '1.5',
+                fontWeight: '500',
+              }}
+            >
+              {t.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </NotificationsContext.Provider>
-  );
+  )
 }
 
 export function useNotifications() {

@@ -228,6 +228,29 @@
   margin-left: auto;
 }
 
+/* Auction Banners */
+.detail__auction-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  border-radius: var(--r-md);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.detail__auction-banner--sold {
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  color: #86efac;
+}
+
+.detail__auction-banner--reserve {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
 /* Price */
 .detail__price-block {
   display: flex;
