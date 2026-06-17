@@ -10,8 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// GetOrCreateConversation gets an existing conversation between buyer and seller for a listing,
-// or creates a new one if it doesn't exist
 func GetOrCreateConversation(c *gin.Context) {
 	var input struct {
 		ListingID uint `json:"listing_id" binding:"required"`
@@ -23,7 +21,6 @@ func GetOrCreateConversation(c *gin.Context) {
 		return
 	}
 
-	// Get seller ID from listing
 	var listing models.Listing
 	if err := config.DB.First(&listing, input.ListingID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -36,14 +33,13 @@ func GetOrCreateConversation(c *gin.Context) {
 
 	sellerID := listing.SellerID
 
-	// Find existing conversation
 	var conversation models.Conversation
 	err := config.DB.Where("listing_id = ? AND buyer_id = ? AND seller_id = ?",
 		input.ListingID, input.BuyerID, sellerID).First(&conversation).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Create new conversation
+
 			conversation = models.Conversation{
 				ListingID: input.ListingID,
 				BuyerID:   input.BuyerID,
@@ -59,13 +55,11 @@ func GetOrCreateConversation(c *gin.Context) {
 		}
 	}
 
-	// Return conversation details
 	c.JSON(http.StatusOK, gin.H{
 		"conversation": conversation,
 	})
 }
 
-// GetConversationsForUser gets all conversations for a specific user (either as buyer or seller)
 func GetConversationsForUser(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	uid := uint(userID.(float64))
@@ -88,7 +82,6 @@ func GetConversationsForUser(c *gin.Context) {
 	})
 }
 
-// GetMessagesForConversation gets all messages for a specific conversation
 func GetMessagesForConversation(c *gin.Context) {
 	conversationID := c.Param("conversationId")
 
@@ -103,7 +96,6 @@ func GetMessagesForConversation(c *gin.Context) {
 		return
 	}
 
-	// Hide password field from sender objects
 	for i := range messages {
 		messages[i].Sender.Password = ""
 	}

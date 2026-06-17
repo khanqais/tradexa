@@ -34,7 +34,6 @@ type Listing struct {
 	HighestBid    *float64       `gorm:"-" json:"highest_bid,omitempty"`
 }
 
-// ListingImage represents an image associated with a Listing
 type ListingImage struct {
 	ID        uint   `gorm:"primaryKey" json:"id"`
 	ListingID uint   `gorm:"not null;index" json:"-"`

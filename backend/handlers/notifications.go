@@ -8,8 +8,6 @@ import (
 	ws "github.com/khanqais/tradexa/websocket"
 )
 
-// GET /api/ws/notifications
-// Global notification socket for logged in users
 func NotificationHandler(c *gin.Context) {
 	log.Println("[DEBUG] NotificationHandler called")
 	log.Printf("[DEBUG] Query: %v\n", c.Request.URL.Query())
@@ -34,21 +32,17 @@ func NotificationHandler(c *gin.Context) {
 	log.Println("[DEBUG] WebSocket upgraded successfully")
 
 	client := &ws.Client{
-		Hub:    nil, // Global client doesn't belong to a specific listing hub
+		Hub:    nil,
 		Conn:   conn,
 		Send:   make(chan []byte, 256),
 		UserID: userID,
 	}
 
-	// Register globally
 	ws.Manager.RegisterClient(userID, client)
 	log.Printf("[DEBUG] Client registered: userID=%d\n", userID)
 
-	// Start write pump (to send notifications to client)
 	go client.WritePump()
 
-	// Read pump is still needed to handle pings/pongs and close events
-	// but we don't expect messages FROM the client here
 	go func() {
 		defer func() {
 			ws.Manager.UnregisterClient(userID, client)

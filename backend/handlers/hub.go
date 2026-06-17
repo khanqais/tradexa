@@ -40,9 +40,8 @@ func (h *AuctionHub) Broadcast(listingID uint, message []byte) {
 		for clientChan := range clients {
 			select {
 			case clientChan <- message:
-				// Successfully sent to the client's channel
 			default:
-				// If the pipe is blocked, skip them so the server doesn't freeze
+				//imp:: If the pipe is blocked skip them so the server doesn't freeze
 			}
 		}
 	}

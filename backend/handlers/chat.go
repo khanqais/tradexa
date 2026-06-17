@@ -8,8 +8,6 @@ import (
 	"github.com/khanqais/tradexa/models"
 )
 
-// GET /api/chat/:listingId/history — public
-// returns the last 100 messages for a listing's chat thread (for backward compatibility)
 func GetChatHistory(c *gin.Context) {
 	listingID := c.Param("listingId")
 	var message []models.Message
@@ -20,7 +18,7 @@ func GetChatHistory(c *gin.Context) {
 		})
 		return
 	}
-	// hide password field from every sender object in the response
+
 	for i := range message {
 		message[i].Sender.Password = ""
 	}

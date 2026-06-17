@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/khanqais/tradexa/config"
+	"github.com/khanqais/tradexa/middleware"
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -72,24 +73,15 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// Verify OTP
-	var otpRecord models.OTP
-	if err := config.DB.Where("LOWER(email) = ?", normalizedEmail).First(&otpRecord).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "OTP not found. Please request a new OTP."})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+	// Verify OTP from Redis
+	otpKey := "otp:" + normalizedEmail
+	storedOTP, otpErr := config.RDB.Get(context.Background(), otpKey).Result()
+	if otpErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP not found or expired. Please request a new OTP."})
 		return
 	}
-
-	if otpRecord.Code != input.Otp {
+	if storedOTP != input.Otp {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid OTP"})
-		return
-	}
-
-	if time.Now().After(otpRecord.ExpiresAt) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP has expired. Please request a new OTP."})
 		return
 	}
 
@@ -109,30 +101,16 @@ func Register(c *gin.Context) {
 		Role:     role,
 	}
 
-	// Start GORM transaction for atomicity
-	tx := config.DB.Begin()
-	if err := tx.Create(&user).Error; err != nil {
-		tx.Rollback()
+	// Create user in DB
+	if err := config.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "failed to create user",
 		})
 		return
 	}
 
-	if err := tx.Delete(&otpRecord).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to clear verification state",
-		})
-		return
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to finalize registration",
-		})
-		return
-	}
+	// Delete OTP from Redis — it has been consumed
+	config.RDB.Del(context.Background(), otpKey)
 
 	user.Password = ""
 	c.JSON(http.StatusOK, gin.H{
@@ -172,30 +150,11 @@ func SendOTP(c *gin.Context) {
 		otpCode += fmt.Sprintf("%d", b[i]%10)
 	}
 
-	expiresAt := time.Now().Add(10 * time.Minute)
-
-	// Save or update OTP in the database
-	var otpRecord models.OTP
-	err = config.DB.Where("LOWER(email) = ?", normalizedEmail).First(&otpRecord).Error
-	if err == nil {
-		otpRecord.Code = otpCode
-		otpRecord.ExpiresAt = expiresAt
-		if err := config.DB.Save(&otpRecord).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save OTP"})
-			return
-		}
-	} else if errors.Is(err, gorm.ErrRecordNotFound) {
-		otpRecord = models.OTP{
-			Email:     normalizedEmail,
-			Code:      otpCode,
-			ExpiresAt: expiresAt,
-		}
-		if err := config.DB.Create(&otpRecord).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create OTP"})
-			return
-		}
-	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+	// Store OTP in Redis with 10-minute TTL (replaces DB write)
+	otpKey := "otp:" + normalizedEmail
+	if err := config.RDB.Set(context.Background(), otpKey, otpCode, 10*time.Minute).Err(); err != nil {
+		log.Printf("failed to store OTP in Redis: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate OTP, please try again"})
 		return
 	}
 
@@ -452,4 +411,45 @@ func GoogleLogin(c *gin.Context) {
 			"picture": picture,
 		},
 	})
+}
+
+// Logout blacklists the current JWT token in Redis so it cannot be reused.
+func Logout(c *gin.Context) {
+	rawToken, exists := c.Get("raw_token")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no token found in context"})
+		return
+	}
+	tokenString, ok := rawToken.(string)
+	if !ok || tokenString == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token"})
+		return
+	}
+
+	// Parse to get remaining TTL so the blacklist key auto-expires
+	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+
+	ttl := 24 * time.Hour // default fallback
+	if err == nil && token.Valid {
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if exp, ok := claims["exp"].(float64); ok {
+				remaining := time.Until(time.Unix(int64(exp), 0))
+				if remaining > 0 {
+					ttl = remaining
+				}
+			}
+		}
+	}
+
+	if err := middleware.BlacklistToken(tokenString, ttl); err != nil {
+		log.Printf("[Logout] Failed to blacklist token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "logout failed, please try again"})
+		return
+	}
+
+	log.Printf("[Logout] Token blacklisted for %.0f minutes", ttl.Minutes())
+	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
 }

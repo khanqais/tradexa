@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/khanqais/tradexa/handlers"
 	"github.com/khanqais/tradexa/middleware"
@@ -14,9 +16,13 @@ func RegisterRoutes(r *gin.Engine) {
 				"status": "Bidding api is working",
 			})
 		})
-		api.POST("/login", handlers.Login)
+
+		api.POST("/login", middleware.RateLimit("rl:login", middleware.ByIP, 10, 15*time.Minute), handlers.Login)
+
 		api.POST("/register", handlers.Register)
-		api.POST("/auth/send-otp", handlers.SendOTP)
+
+		api.POST("/auth/send-otp", middleware.RateLimit("rl:otp", middleware.ByIP, 5, 1*time.Hour), handlers.SendOTP)
+
 		api.POST("/auth/google", handlers.GoogleLogin)
 		api.GET("/listings", handlers.GetListings)
 		api.GET("/listings/:id", handlers.GetListingByID)
@@ -25,6 +31,7 @@ func RegisterRoutes(r *gin.Engine) {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{
+			protected.POST("/logout", handlers.Logout)
 			protected.POST("/bid", handlers.BidHandler)
 			protected.POST("/forget", handlers.ChangePassowrd)
 			protected.GET("/me", handlers.GetMe)
@@ -38,7 +45,6 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.GET("/conversations/:conversationId/messages", handlers.GetMessagesForConversation)
 			protected.GET("/ws/notifications", handlers.NotificationHandler)
 			protected.GET("/ws/conversation/:conversationId", handlers.ConversationHandler)
-
 		}
 	}
 

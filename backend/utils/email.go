@@ -6,7 +6,6 @@ import (
 	"os"
 )
 
-// SendEmail sends a basic email to the recipient using standard SMTP
 func SendEmail(to, subject, htmlBody string) error {
 	from := os.Getenv("SMTP_EMAIL")
 	password := os.Getenv("SMTP_PASSWORD")
@@ -19,7 +18,6 @@ func SendEmail(to, subject, htmlBody string) error {
 
 	auth := smtp.PlainAuth("", from, password, smtpHost)
 
-	// Build headers and HTML content
 	msg := []byte("To: " + to + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"MIME-Version: 1.0\r\n" +

@@ -1,19 +1,21 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
+	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/utils"
 	ws "github.com/khanqais/tradexa/websocket"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
-// StartAuctionWatcher runs a background goroutine that checks for expired auctions.
-// It uses an adaptive interval: fast (10s) when auctions are active, slow (60s) when idle.
 func StartAuctionWatcher(db *gorm.DB) {
 	log.Println("[AuctionWatcher] Started — watching for expired auctions")
 
@@ -46,19 +48,55 @@ func StartAuctionWatcher(db *gorm.DB) {
 }
 
 func processExpiredAuctions(db *gorm.DB) int {
-	var expiredListings []models.Listing
+	ctx := context.Background()
+	nowStr := strconv.FormatInt(time.Now().Unix(), 10)
 
-	// Find all auction listings that have expired but haven't been processed yet
+	expiredMembers, redisErr := config.RDB.ZRangeArgs(ctx, redis.ZRangeArgs{
+		Key:     "auctions:pending",
+		Start:   "-inf",
+		Stop:    nowStr,
+		ByScore: true,
+	}).Result()
+
+	if redisErr == nil && len(expiredMembers) > 0 {
+		args := make([]interface{}, len(expiredMembers))
+		for i, m := range expiredMembers {
+			args[i] = m
+		}
+		config.RDB.ZRem(ctx, "auctions:pending", args...)
+
+		processed := 0
+		for _, memberStr := range expiredMembers {
+			n, err := strconv.ParseUint(memberStr, 10, 64)
+			if err != nil {
+				log.Printf("[AuctionWatcher] Invalid member in Redis sorted set: %q — skipping", memberStr)
+				continue
+			}
+			listingID := uint(n)
+
+			var listing models.Listing
+			if err := db.First(&listing, listingID).Error; err != nil {
+				log.Printf("[AuctionWatcher] Listing %d not found in DB: %v", listingID, err)
+				continue
+			}
+			if listing.IsSold || (listing.Status != "" && listing.Status != "active") {
+				continue
+			}
+			processAuctionClosure(db, listing)
+			processed++
+		}
+		return processed
+	}
+
+	var expiredListings []models.Listing
 	err := db.Where(
 		"type = ? AND is_sold = ? AND (status = ? OR status = '') AND auction_ends_at <= ?",
 		"auction", false, "active", time.Now(),
 	).Find(&expiredListings).Error
-
 	if err != nil {
-		log.Printf("[AuctionWatcher] Error querying expired auctions: %v", err)
+		log.Printf("[AuctionWatcher] Error querying expired auctions (DB fallback): %v", err)
 		return 0
 	}
-
 	for _, listing := range expiredListings {
 		processAuctionClosure(db, listing)
 	}
@@ -68,7 +106,6 @@ func processExpiredAuctions(db *gorm.DB) int {
 func processAuctionClosure(db *gorm.DB, listing models.Listing) {
 	log.Printf("[AuctionWatcher] Processing expired auction: listing_id=%d title=%q", listing.ID, listing.Title)
 
-	// Find the highest bid for this listing
 	var highestBid models.Bid
 	hasBids := true
 	if err := db.Where("listing_id = ?", listing.ID).Order("amount desc").First(&highestBid).Error; err != nil {
@@ -92,7 +129,6 @@ func processAuctionClosure(db *gorm.DB, listing models.Listing) {
 func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bid) {
 	tx := db.Begin()
 
-	// Mark listing as sold
 	if err := tx.Model(&listing).Updates(map[string]interface{}{
 		"is_sold": true,
 		"status":  "sold",
@@ -102,7 +138,6 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 		return
 	}
 
-	// Create order record
 	order := models.Order{
 		ListingID: listing.ID,
 		WinnerID:  highestBid.BidderID,
@@ -124,12 +159,10 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 	log.Printf("[AuctionWatcher] Auction SOLD: listing_id=%d winner_id=%d amount=%.2f order_id=%d",
 		listing.ID, highestBid.BidderID, highestBid.Amount, order.ID)
 
-	// Fetch winner and seller user records for notifications
 	var winner, seller models.User
 	db.First(&winner, highestBid.BidderID)
 	db.First(&seller, listing.SellerID)
 
-	// --- SSE broadcast to listing stream ---
 	ssePayload, _ := json.Marshal(map[string]interface{}{
 		"type":       "auction_closed",
 		"listing_id": listing.ID,
@@ -140,7 +173,6 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 	})
 	StreamHub.Broadcast(listing.ID, ssePayload)
 
-	// --- WebSocket notification to winner ---
 	winnerNotif, _ := json.Marshal(map[string]interface{}{
 		"type":       "auction_won",
 		"listing_id": listing.ID,
@@ -150,7 +182,6 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 	})
 	ws.Manager.NotifyUser(highestBid.BidderID, winnerNotif)
 
-	// --- WebSocket notification to seller ---
 	sellerNotif, _ := json.Marshal(map[string]interface{}{
 		"type":       "auction_sold",
 		"listing_id": listing.ID,
@@ -160,7 +191,6 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 	})
 	ws.Manager.NotifyUser(listing.SellerID, sellerNotif)
 
-	// --- Email notifications (fire and forget in goroutines so watcher isn't blocked) ---
 	go func() {
 		subject := fmt.Sprintf("🏆 You won the auction for \"%s\"!", listing.Title)
 		body := fmt.Sprintf(`
@@ -203,7 +233,6 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 }
 
 func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
-	// Update listing status
 	if err := db.Model(&listing).Update("status", "reserve_not_met").Error; err != nil {
 		log.Printf("[AuctionWatcher] Error updating listing %d to reserve_not_met: %v", listing.ID, err)
 		return
@@ -211,11 +240,9 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 
 	log.Printf("[AuctionWatcher] Auction RESERVE NOT MET: listing_id=%d", listing.ID)
 
-	// Fetch seller for notifications
 	var seller models.User
 	db.First(&seller, listing.SellerID)
 
-	// --- SSE broadcast ---
 	ssePayload, _ := json.Marshal(map[string]interface{}{
 		"type":       "auction_closed",
 		"listing_id": listing.ID,
@@ -223,7 +250,6 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 	})
 	StreamHub.Broadcast(listing.ID, ssePayload)
 
-	// --- WS notify seller ---
 	sellerNotif, _ := json.Marshal(map[string]interface{}{
 		"type":       "auction_reserve_not_met",
 		"listing_id": listing.ID,
@@ -231,7 +257,7 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 	})
 	ws.Manager.NotifyUser(listing.SellerID, sellerNotif)
 
-	// --- WS notify all unique bidders ---
+	// WS notify all unique bidders
 	if hasBids {
 		var bidderIDs []uint
 		db.Model(&models.Bid{}).Where("listing_id = ?", listing.ID).
@@ -247,7 +273,6 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 		}
 	}
 
-	// --- Email seller ---
 	go func() {
 		subject := fmt.Sprintf("❌ Reserve price not met for \"%s\"", listing.Title)
 		body := fmt.Sprintf(`

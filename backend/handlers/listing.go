@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/models"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -87,6 +89,13 @@ func CreateListing(c *gin.Context) {
 	config.DB.WithContext(c.Request.Context()).Preload("Seller").Preload("Images").First(&listing, listing.ID)
 	listing.Seller.Password = ""
 
+	if listing.Type == models.ListingTypeAuction && listing.AuctionEndsAt != nil {
+		config.RDB.ZAdd(context.Background(), "auctions:pending", redis.Z{
+			Score:  float64(listing.AuctionEndsAt.Unix()),
+			Member: listing.ID,
+		})
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"listing": listing,
 	})
@@ -138,7 +147,6 @@ func GetListings(c *gin.Context) {
 		query = query.Where("type = ?", listingType)
 	}
 
-	// ?sold=false — hide sold listings by default
 	if sold := c.Query("sold"); sold == "true" {
 		query = query.Where("is_sold = ?", true)
 	} else {
@@ -163,7 +171,6 @@ func GetListings(c *gin.Context) {
 		return
 	}
 
-	// Collect auction listing IDs for a batch highest-bid lookup
 	var auctionIDs []uint
 	for i := range listings {
 		listings[i].Seller.Password = ""
@@ -172,11 +179,10 @@ func GetListings(c *gin.Context) {
 		}
 	}
 
-	// Batch fetch highest bids in a single query instead of N+1
 	if len(auctionIDs) > 0 {
 		type highestBidResult struct {
-			ListingID  uint
-			MaxAmount  float64
+			ListingID uint
+			MaxAmount float64
 		}
 		var results []highestBidResult
 		config.DB.WithContext(c.Request.Context()).
@@ -296,6 +302,8 @@ func DeleteListing(c *gin.Context) {
 		return
 	}
 
+	config.RDB.ZRem(context.Background(), "auctions:pending", listing.ID)
+
 	c.JSON(http.StatusOK, gin.H{"message": "listing deleted successfully"})
 }
 
@@ -319,7 +327,6 @@ func BidHandler(c *gin.Context) {
 
 	tx := config.DB.WithContext(c.Request.Context()).Begin()
 	defer func() {
-		// Something wrong happen then this func will work
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
@@ -359,20 +366,17 @@ func BidHandler(c *gin.Context) {
 
 	if errr != nil {
 		if errors.Is(errr, gorm.ErrRecordNotFound) {
-			//No bids exist yet. First bid must be >= starting price.
 			if input.Amount < uint(listing.Price) {
 				tx.Rollback()
 				c.JSON(http.StatusBadRequest, gin.H{"error": "first bid must be at least the starting price"})
 				return
 			}
 		} else {
-			// A real database connection error occurred.
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": errr.Error()})
 			return
 		}
 	} else {
-		// Bids already exist. New bid must be strictly > highest bid.
 		if input.Amount <= uint(highestBid.Amount) {
 			tx.Rollback()
 			c.JSON(http.StatusBadRequest, gin.H{"error": "bid must be higher than the current highest bid"})
@@ -391,7 +395,7 @@ func BidHandler(c *gin.Context) {
 	}
 	tx.Commit()
 
-	// Anti-snipe: if bid placed within the last 60 seconds, extend auction by 2 minutes
+	// Anti-snipe
 	if listing.AuctionEndsAt != nil {
 		timeLeft := time.Until(*listing.AuctionEndsAt)
 		if timeLeft > 0 && timeLeft <= 60*time.Second {
@@ -400,15 +404,14 @@ func BidHandler(c *gin.Context) {
 			listing.AuctionEndsAt = &newEnd
 
 			extPayload, _ := json.Marshal(map[string]interface{}{
-				"type":               "timer_extended",
-				"listing_id":         listing.ID,
+				"type":                "timer_extended",
+				"listing_id":          listing.ID,
 				"new_auction_ends_at": newEnd,
 			})
 			StreamHub.Broadcast(listing.ID, extPayload)
 		}
 	}
 
-	// Broadcast new bid with current auction_ends_at so frontend always has latest deadline
 	payload := map[string]interface{}{
 		"type":       "new_bid",
 		"listing_id": newBid.ListingID,

@@ -1,20 +1,22 @@
 package middleware
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/khanqais/tradexa/config"
 )
 
 func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenString string
 
-		// first check Authorization header (REST routes)
 		authHeader := c.GetHeader("Authorization")
 		if authHeader != "" {
 			parts := strings.Split(authHeader, " ")
@@ -23,7 +25,6 @@ func AuthRequired() gin.HandlerFunc {
 			}
 		}
 
-		// fallback — check ?token= query param (WebSocket routes)
 		if tokenString == "" {
 			tokenString = strings.TrimSpace(c.Query("token"))
 		}
@@ -33,6 +34,15 @@ func AuthRequired() gin.HandlerFunc {
 		if tokenString == "" {
 			log.Println("[ERROR] authorization token missing")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization token missing"})
+			c.Abort()
+			return
+		}
+
+		blacklistKey := "blacklist:" + tokenString
+		blacklisted, _ := config.RDB.Exists(context.Background(), blacklistKey).Result()
+		if blacklisted > 0 {
+			log.Println("[ERROR] Token is blacklisted (logged out)")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked, please login again"})
 			c.Abort()
 			return
 		}
@@ -60,9 +70,15 @@ func AuthRequired() gin.HandlerFunc {
 			c.Set("email", claims["email"])
 			c.Set("role", claims["role"])
 			c.Set("name", claims["name"])
+			c.Set("raw_token", tokenString)
 			log.Printf("[DEBUG] Auth successful - user_id: %v, email: %v\n", claims["user_id"], claims["email"])
 		}
 
 		c.Next()
 	}
+}
+
+func BlacklistToken(tokenString string, ttl time.Duration) error {
+	ctx := context.Background()
+	return config.RDB.Set(ctx, "blacklist:"+tokenString, "1", ttl).Err()
 }

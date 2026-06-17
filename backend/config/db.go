@@ -24,8 +24,6 @@ func ConnectDB() {
 		log.Fatal("database URL not found: set DATABASE_URL (or Url/DB_URL)")
 	}
 
-	// PgBouncer in transaction mode (port 6543) does not support prepared
-	// statements. Append simple_protocol mode so pgx/v5 uses plain queries.
 	if !strings.Contains(dsn, "default_query_exec_mode") {
 		if strings.Contains(dsn, "?") {
 			dsn += "&default_query_exec_mode=simple_protocol"

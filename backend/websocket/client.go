@@ -19,15 +19,13 @@ const (
 )
 
 type Client struct {
-	Hub    *Hub            // pointer to the Hub this client belongs to
-	Conn   *websocket.Conn // the actual WebSocket connection to this browser
-	Send   chan []byte     // buffered channel — messages waiting to be sent to this client
-	UserID uint            // from JWT — who is this person
-	Name   string          // from JWT — their display name
+	Hub    *Hub
+	Conn   *websocket.Conn
+	Send   chan []byte
+	UserID uint
+	Name   string
 }
 
-// ReadPump runs in its own goroutine — continuously reads messages FROM the browser
-// one ReadPump per client, for the entire lifetime of their connection
 func (c *Client) ReadPump(listingID string) {
 	defer func() {
 		if c.Hub != nil {
@@ -40,15 +38,11 @@ func (c *Client) ReadPump(listingID string) {
 
 	c.Conn.SetReadLimit(maxMessage)
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-
-	// when we receive a pong (response to our ping), reset the deadline
-	// this is how we know the client is still alive
 	c.Conn.SetPongHandler(func(string) error {
 		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
-	//infinite loop -> keep reading until connection break
 	for {
 		_, raw, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -74,10 +68,8 @@ func (c *Client) ReadPump(listingID string) {
 		}
 		config.DB.Create(&msg)
 
-		// Fetch listing to get seller ID for notification
 		var listing models.Listing
 		if err := config.DB.Select("seller_id, title").First(&listing, listingIDint).Error; err == nil {
-			// Notify seller if they are not the sender
 			if listing.SellerID != c.UserID {
 				notification := map[string]interface{}{
 					"type":          "new_message",
@@ -93,7 +85,6 @@ func (c *Client) ReadPump(listingID string) {
 			}
 		}
 
-		// push to hub's broadcast channel — hub will deliver to all clients
 		type outMsg struct {
 			SenderID   uint      `json:"sender_id"`
 			SenderName string    `json:"sender_name"`
@@ -108,20 +99,14 @@ func (c *Client) ReadPump(listingID string) {
 			ListingID:  listingID,
 			SentAt:     time.Now(),
 		}
-		// marshal struct back to JSON bytes
 		outBytes, _ := json.Marshal(out)
-		// push to hub's broadcast channel — hub will deliver to all clients
 		if c.Hub != nil {
 			c.Hub.broadcast <- outBytes
 		}
 	}
 }
 
-// WritePump runs in its own goroutine — continuously sends messages TO the browser
-// it reads from client.Send channel (messages put there by the hub)
 func (c *Client) WritePump() {
-	// ticker fires every pingPeriod to send a ping to the browser
-	// browser must reply with a pong — this confirms the connection is still alive
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -129,7 +114,6 @@ func (c *Client) WritePump() {
 	}()
 	for {
 		select {
-		// CASE 1 — hub has a message ready for this client
 		case message, ok := <-c.Send:
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
@@ -149,7 +133,6 @@ func (c *Client) WritePump() {
 	}
 }
 
-// ReadPumpForConversation runs in its own goroutine — continuously reads messages FROM the browser for a specific conversation
 func (c *Client) ReadPumpForConversation(conversationID string) {
 	defer func() {
 		if c.Hub != nil {
@@ -162,15 +145,11 @@ func (c *Client) ReadPumpForConversation(conversationID string) {
 
 	c.Conn.SetReadLimit(maxMessage)
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-
-	// when we receive a pong (response to our ping), reset the deadline
-	// this is how we know the client is still alive
 	c.Conn.SetPongHandler(func(string) error {
 		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
-	//infinite loop -> keep reading until connection break
 	for {
 		_, raw, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -190,10 +169,9 @@ func (c *Client) ReadPumpForConversation(conversationID string) {
 		}
 
 		conversationIDint := parseUnit(conversationID)
-		// Fetch conversation to get buyer and seller IDs
 		var conversation models.Conversation
 		if err := config.DB.First(&conversation, conversationIDint).Error; err != nil {
-			continue // skip if conversation not found
+			continue
 		}
 
 		msg := models.Message{
@@ -204,16 +182,13 @@ func (c *Client) ReadPumpForConversation(conversationID string) {
 		}
 		config.DB.Create(&msg)
 
-		// Notify the other participant only if they are NOT already connected to this hub
-		// (i.e. they're on a different page). If they're in the hub they'll get the broadcast.
 		var recipientID uint
 		if conversation.BuyerID == c.UserID {
 			recipientID = conversation.SellerID
 		} else {
 			recipientID = conversation.BuyerID
 		}
-		// Only send a push notification if the recipient has no active client in THIS hub.
-		// If they're connected here the hub.broadcast below will deliver the message.
+
 		recipientInHub := false
 		if c.Hub != nil {
 			for hubClient := range c.Hub.clients {
@@ -237,7 +212,6 @@ func (c *Client) ReadPumpForConversation(conversationID string) {
 			Manager.NotifyUser(recipientID, notifBytes)
 		}
 
-		// push to hub's broadcast channel — hub will deliver to all clients in this conversation
 		type outMsg struct {
 			SenderID   uint      `json:"sender_id"`
 			SenderName string    `json:"sender_name"`
@@ -252,9 +226,7 @@ func (c *Client) ReadPumpForConversation(conversationID string) {
 			ListingID:  fmt.Sprintf("%d", conversation.ListingID),
 			SentAt:     time.Now(),
 		}
-		// marshal struct back to JSON bytes
 		outBytes, _ := json.Marshal(out)
-		// push to hub's broadcast channel — hub will deliver to all clients
 		if c.Hub != nil {
 			c.Hub.broadcast <- outBytes
 		}

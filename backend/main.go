@@ -20,10 +20,10 @@ func main() {
 	}
 	config.ConnectDB()
 	config.ConnectCloudinary()
+	config.ConnectRedis()
 	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{}, &models.Order{})
 	config.RunMigrations(config.DB)
 
-	// Start background auction watcher goroutine
 	go handlers.StartAuctionWatcher(config.DB)
 	r := gin.Default()
 

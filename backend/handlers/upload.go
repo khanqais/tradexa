@@ -20,7 +20,6 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-	//only allow image file types
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true}
 	if !allowed[ext] {

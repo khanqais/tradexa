@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// Conversation represents a 1:1 chat between a buyer and seller for a specific listing
 type Conversation struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	ListingID uint      `gorm:"not null" json:"listing_id"`
@@ -19,7 +18,6 @@ type Conversation struct {
 	Seller  *User    `gorm:"foreignKey:SellerID" json:"seller,omitempty"`
 }
 
-// TableName overrides the table name used by GORM
 func (Conversation) TableName() string {
 	return "conversations"
 }
