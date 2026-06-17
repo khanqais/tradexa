@@ -11,7 +11,6 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const { login, register, sendOtp, googleLogin, isAuthenticated } = useAuth();
 
-  // mode: 'login' | 'register' | 'forgot'
   const [mode, setMode]     = useState(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');

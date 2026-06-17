@@ -143,7 +143,7 @@ export default function CreateListingPage() {
     }
   };
 
-  const minDate = toLocalDateTimeString(new Date(Date.now() + 60 * 60 * 1000));
+  const minDate = toLocalDateTimeString(new Date(Date.now() + 2 * 60 * 1000));
 
   return (
     <div className="create container">

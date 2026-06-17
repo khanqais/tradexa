@@ -2,15 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/hibiken/asynq"
 	"github.com/khanqais/tradexa/config"
-	"github.com/khanqais/tradexa/handlers"
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/routes"
+	"github.com/khanqais/tradexa/tasks"
+	"github.com/khanqais/tradexa/workers"
 )
 
 func main() {
@@ -24,7 +27,8 @@ func main() {
 	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{}, &models.Order{})
 	config.RunMigrations(config.DB)
 
-	go handlers.StartAuctionWatcher(config.DB)
+	config.InitAsynq()
+	go startAsynqWorker()
 	r := gin.Default()
 
 	devOrigins := []string{"http://localhost:3000", "http://127.0.0.1:3000"}
@@ -48,4 +52,13 @@ func main() {
 		port = "8080"
 	}
 	r.Run(":" + port)
+}
+
+func startAsynqWorker() {
+	mux := asynq.NewServeMux()
+	mux.HandleFunc(tasks.TypeAuctionClose, workers.HandleAuctionCloseTask)
+
+	if err := config.AsynqServer.Run(mux); err != nil {
+		log.Fatalf("Could not run Asynq server: %v", err)
+	}
 }

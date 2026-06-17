@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +10,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/models"
-	"github.com/redis/go-redis/v9"
+	"github.com/khanqais/tradexa/tasks"
 	"gorm.io/gorm"
 )
 
@@ -90,10 +90,10 @@ func CreateListing(c *gin.Context) {
 	listing.Seller.Password = ""
 
 	if listing.Type == models.ListingTypeAuction && listing.AuctionEndsAt != nil {
-		config.RDB.ZAdd(context.Background(), "auctions:pending", redis.Z{
-			Score:  float64(listing.AuctionEndsAt.Unix()),
-			Member: listing.ID,
-		})
+		task, err := tasks.NewAuctionCloseTask(listing.ID)
+		if err == nil {
+			config.AsynqClient.Enqueue(task, asynq.ProcessAt(*listing.AuctionEndsAt))
+		}
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -301,8 +301,6 @@ func DeleteListing(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete listing"})
 		return
 	}
-
-	config.RDB.ZRem(context.Background(), "auctions:pending", listing.ID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "listing deleted successfully"})
 }
