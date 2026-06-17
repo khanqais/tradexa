@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
+import { forgotPasswordSendOtp, forgotPasswordReset } from '../api';
 import './AuthPage.css';
 
 export default function AuthPage() {
@@ -10,15 +11,26 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const { login, register, sendOtp, googleLogin, isAuthenticated } = useAuth();
 
+  // mode: 'login' | 'register' | 'forgot'
   const [mode, setMode]     = useState(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  const [success, setSuccess] = useState('');
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [regData, setRegData] = useState({ name: '', email: '', password: '', role: 'buyer' });
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [countdown, setCountdown] = useState(0);
+
+  // Forgot password state
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtpSent, setForgotOtpSent] = useState(false);
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotNewPass, setForgotNewPass] = useState('');
+  const [forgotConfirmPass, setForgotConfirmPass] = useState('');
+  const [forgotCountdown, setForgotCountdown] = useState(0);
+  const [resetDone, setResetDone] = useState(false);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -28,8 +40,29 @@ export default function AuthPage() {
   }, [countdown]);
 
   useEffect(() => {
+    if (forgotCountdown > 0) {
+      const timer = setTimeout(() => setForgotCountdown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [forgotCountdown]);
+
+  useEffect(() => {
     if (isAuthenticated) navigate('/', { replace: true });
   }, [isAuthenticated, navigate]);
+
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setError('');
+    setSuccess('');
+    setForgotOtpSent(false);
+    setForgotOtp('');
+    setForgotNewPass('');
+    setForgotConfirmPass('');
+    setForgotEmail('');
+    setResetDone(false);
+    setOtpSent(false);
+    setOtp('');
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -104,10 +137,64 @@ export default function AuthPage() {
     setError('Google Login Failed');
   };
 
+  // ── Forgot password handlers ──────────────────────────────────
+  const handleForgotSendOtp = async (e) => {
+    e?.preventDefault();
+    setError('');
+    if (!forgotEmail) {
+      setError('Please enter your email address.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await forgotPasswordSendOtp(forgotEmail);
+      setForgotOtpSent(true);
+      setForgotCountdown(60);
+      setSuccess('Reset code sent! Check your inbox.');
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to send reset code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotReset = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!forgotOtp || forgotOtp.length !== 6) {
+      setError('Please enter the 6-digit code from your email.');
+      return;
+    }
+    if (forgotNewPass.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+    if (forgotNewPass !== forgotConfirmPass) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await forgotPasswordReset(forgotEmail, forgotOtp, forgotNewPass);
+      setResetDone(true);
+      setSuccess('Password reset successfully! You can now sign in.');
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to reset password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabVariants = {
     hidden:  { opacity: 0, x: mode === 'login' ? -16 : 16 },
     visible: { opacity: 1, x: 0 },
     exit:    { opacity: 0, x: mode === 'login' ? 16 : -16 },
+  };
+
+  const slideVariants = {
+    hidden:  { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0 },
+    exit:    { opacity: 0, y: -12 },
   };
 
   return (
@@ -134,25 +221,40 @@ export default function AuthPage() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="auth-card__tabs">
-            <button
-              className={`auth-card__tab ${mode === 'login' ? 'auth-card__tab--active' : ''}`}
-              onClick={() => { setMode('login'); setError(''); }}
-            >
-              Sign In
-            </button>
-            <button
-              className={`auth-card__tab ${mode === 'register' ? 'auth-card__tab--active' : ''}`}
-              onClick={() => { setMode('register'); setError(''); }}
-            >
-              Create Account
-            </button>
-            <div
-              className="auth-card__tab-indicator"
-              style={{ transform: `translateX(${mode === 'login' ? '0%' : '100%'})` }}
-            />
-          </div>
+          {/* Tabs — hidden when in forgot mode */}
+          {mode !== 'forgot' && (
+            <div className="auth-card__tabs">
+              <button
+                className={`auth-card__tab ${mode === 'login' ? 'auth-card__tab--active' : ''}`}
+                onClick={() => switchMode('login')}
+              >
+                Sign In
+              </button>
+              <button
+                className={`auth-card__tab ${mode === 'register' ? 'auth-card__tab--active' : ''}`}
+                onClick={() => switchMode('register')}
+              >
+                Create Account
+              </button>
+              <div
+                className="auth-card__tab-indicator"
+                style={{ transform: `translateX(${mode === 'login' ? '0%' : '100%'})` }}
+              />
+            </div>
+          )}
 
+          {/* Forgot password header */}
+          {mode === 'forgot' && (
+            <div className="auth-forgot__header">
+              <button className="auth-forgot__back" onClick={() => switchMode('login')}>
+                ← Back to Sign In
+              </button>
+              <h2 className="auth-forgot__title">Reset Password</h2>
+              <p className="auth-forgot__subtitle">Enter your email and we'll send you a reset code</p>
+            </div>
+          )}
+
+          {/* Error banner */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -167,8 +269,25 @@ export default function AuthPage() {
             )}
           </AnimatePresence>
 
+          {/* Success banner */}
+          <AnimatePresence>
+            {success && (
+              <motion.div
+                className="auth-card__success"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <span>✓</span> {success}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
-            {mode === 'login' ? (
+
+            {/* ── LOGIN ── */}
+            {mode === 'login' && (
               <motion.form
                 key="login"
                 className="auth-form"
@@ -203,7 +322,17 @@ export default function AuthPage() {
                   />
                 </div>
                 <div className="auth-form__field">
-                  <label className="form-label">Password</label>
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Password</span>
+                    <button
+                      type="button"
+                      className="auth-form__switch-btn"
+                      style={{ fontSize: '0.8rem' }}
+                      onClick={() => switchMode('forgot')}
+                    >
+                      Forgot password?
+                    </button>
+                  </label>
                   <input
                     className="form-input"
                     type="password"
@@ -225,12 +354,15 @@ export default function AuthPage() {
                 </button>
                 <p className="auth-form__switch" style={{ marginTop: '1rem' }}>
                   No account?{' '}
-                  <button type="button" className="auth-form__switch-btn" onClick={() => setMode('register')}>
+                  <button type="button" className="auth-form__switch-btn" onClick={() => switchMode('register')}>
                     Create one
                   </button>
                 </p>
               </motion.form>
-            ) : (
+            )}
+
+            {/* ── REGISTER ── */}
+            {mode === 'register' && (
               <motion.form
                 key="register"
                 className="auth-form"
@@ -377,12 +509,153 @@ export default function AuthPage() {
                 )}
                 <p className="auth-form__switch" style={{ marginTop: '1rem' }}>
                   Already have an account?{' '}
-                  <button type="button" className="auth-form__switch-btn" onClick={() => { setMode('login'); setOtpSent(false); }}>
+                  <button type="button" className="auth-form__switch-btn" onClick={() => switchMode('login')}>
                     Sign in
                   </button>
                 </p>
               </motion.form>
             )}
+
+            {/* ── FORGOT PASSWORD ── */}
+            {mode === 'forgot' && (
+              <motion.div
+                key="forgot"
+                className="auth-form"
+                variants={slideVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {resetDone ? (
+                  /* Step 3 — success */
+                  <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                    <div className="auth-forgot__success-icon">✓</div>
+                    <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>Password Updated!</h3>
+                    <p style={{ opacity: 0.7, fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                      Your password has been reset successfully.
+                    </p>
+                    <button
+                      className="btn btn--primary auth-form__submit"
+                      onClick={() => switchMode('login')}
+                    >
+                      Sign In with New Password →
+                    </button>
+                  </div>
+                ) : !forgotOtpSent ? (
+                  /* Step 1 — enter email */
+                  <form onSubmit={handleForgotSendOtp}>
+                    <div className="auth-form__field" style={{ marginBottom: '1.5rem' }}>
+                      <label className="form-label">Your Email Address</label>
+                      <input
+                        className="form-input"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={forgotEmail}
+                        onChange={e => { setForgotEmail(e.target.value); setError(''); setSuccess(''); }}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn btn--primary auth-form__submit"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <><span className="spinner spinner--sm" /> Sending…</>
+                      ) : 'Send Reset Code →'}
+                    </button>
+                  </form>
+                ) : (
+                  /* Step 2 — enter OTP + new password */
+                  <form onSubmit={handleForgotReset}>
+                    <p style={{ marginBottom: '1.25rem', fontSize: '0.9rem', opacity: 0.8, textAlign: 'center', lineHeight: 1.5 }}>
+                      Enter the 6-digit code sent to <strong>{forgotEmail}</strong> and choose a new password.
+                    </p>
+
+                    <div className="auth-form__field">
+                      <label className="form-label" style={{ textAlign: 'center', display: 'block' }}>Reset Code</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        placeholder="123456"
+                        maxLength={6}
+                        value={forgotOtp}
+                        onChange={e => { setForgotOtp(e.target.value.replace(/\D/g, '')); setError(''); }}
+                        required
+                        autoFocus
+                        style={{ textAlign: 'center', letterSpacing: '8px', fontSize: '1.5rem', fontFamily: 'monospace' }}
+                      />
+                    </div>
+
+                    <div className="auth-form__field" style={{ marginTop: '1rem' }}>
+                      <label className="form-label">New Password</label>
+                      <input
+                        className="form-input"
+                        type="password"
+                        placeholder="At least 6 characters"
+                        value={forgotNewPass}
+                        onChange={e => { setForgotNewPass(e.target.value); setError(''); }}
+                        required
+                        minLength={6}
+                      />
+                    </div>
+
+                    <div className="auth-form__field" style={{ marginTop: '0.75rem' }}>
+                      <label className="form-label">Confirm New Password</label>
+                      <input
+                        className="form-input"
+                        type="password"
+                        placeholder="Repeat your new password"
+                        value={forgotConfirmPass}
+                        onChange={e => { setForgotConfirmPass(e.target.value); setError(''); }}
+                        required
+                        minLength={6}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        onClick={() => { setForgotOtpSent(false); setForgotOtp(''); setError(''); setSuccess(''); }}
+                        style={{ flex: 1, padding: '0.75rem' }}
+                      >
+                        ← Back
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn--primary"
+                        disabled={loading}
+                        style={{ flex: 2, padding: '0.75rem' }}
+                      >
+                        {loading ? (
+                          <><span className="spinner spinner--sm" /> Resetting…</>
+                        ) : 'Reset Password →'}
+                      </button>
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+                      {forgotCountdown > 0 ? (
+                        <p style={{ opacity: 0.7, fontSize: '0.9rem' }}>Resend code in {forgotCountdown}s</p>
+                      ) : (
+                        <button
+                          type="button"
+                          className="auth-form__switch-btn"
+                          onClick={handleForgotSendOtp}
+                          disabled={loading}
+                          style={{ fontSize: '0.9rem', textDecoration: 'underline' }}
+                        >
+                          Resend Code
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                )}
+              </motion.div>
+            )}
+
           </AnimatePresence>
         </motion.div>
 

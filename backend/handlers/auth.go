@@ -453,3 +453,107 @@ func Logout(c *gin.Context) {
 	log.Printf("[Logout] Token blacklisted for %.0f minutes", ttl.Minutes())
 	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
 }
+
+func ForgotPasswordSendOTP(c *gin.Context) {
+	var input SendOTPInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	normalizedEmail := strings.TrimSpace(strings.ToLower(input.Email))
+
+	var user models.User
+	if err := config.DB.Where("LOWER(email) = ?", normalizedEmail).First(&user).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "If that email exists, a reset code has been sent."})
+		return
+	}
+
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate reset code"})
+		return
+	}
+	otpCode := ""
+	for i := 0; i < 6; i++ {
+		otpCode += fmt.Sprintf("%d", b[i]%10)
+	}
+
+	resetKey := "reset-otp:" + normalizedEmail
+	if err := config.RDB.Set(context.Background(), resetKey, otpCode, 10*time.Minute).Err(); err != nil {
+		log.Printf("[ForgotPassword] Failed to store reset OTP in Redis: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send reset code, please try again"})
+		return
+	}
+
+	subject := "Reset your Tradexa password"
+	htmlBody := fmt.Sprintf(`
+		<div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px;">
+			<h2 style="color: #333;">Password Reset Request</h2>
+			<p>Hi <strong>%s</strong>, we received a request to reset your Tradexa password.</p>
+			<p>Use this code to reset your password:</p>
+			<div style="font-size: 32px; font-weight: bold; background-color: #f7f7f7; padding: 20px; border-radius: 4px; text-align: center; margin: 20px 0; letter-spacing: 8px; color: #4F46E5;">
+				%s
+			</div>
+			<p style="color: #666; font-size: 14px;">This code expires in <strong>10 minutes</strong>. If you didn't request this, you can safely ignore this email — your password will not change.</p>
+			<hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+			<p style="color: #999; font-size: 12px; text-align: center;">Tradexa &copy; 2026. All rights reserved.</p>
+		</div>
+	`, user.Name, otpCode)
+
+	if err := utils.SendEmail(normalizedEmail, subject, htmlBody); err != nil {
+		log.Printf("[ForgotPassword] Failed to send reset email to %s: %v", normalizedEmail, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send reset email: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "If that email exists, a reset code has been sent."})
+}
+
+type ResetPasswordInput struct {
+	Email       string `json:"email" binding:"required,email"`
+	Otp         string `json:"otp" binding:"required,len=6"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
+func ForgotPasswordReset(c *gin.Context) {
+	var input ResetPasswordInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	normalizedEmail := strings.TrimSpace(strings.ToLower(input.Email))
+	resetKey := "reset-otp:" + normalizedEmail
+
+	storedOTP, err := config.RDB.Get(context.Background(), resetKey).Result()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reset code not found or expired. Please request a new one."})
+		return
+	}
+	if storedOTP != input.Otp {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid reset code"})
+		return
+	}
+
+	var user models.User
+	if err := config.DB.Where("LOWER(email) = ?", normalizedEmail).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process new password"})
+		return
+	}
+	if err := config.DB.Model(&user).Update("password", string(hashed)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update password"})
+		return
+	}
+
+	config.RDB.Del(context.Background(), resetKey)
+
+	log.Printf("[ForgotPassword] Password reset for user %s (id=%d)", normalizedEmail, user.ID)
+	c.JSON(http.StatusOK, gin.H{"message": "password reset successfully. You can now log in with your new password."})
+}

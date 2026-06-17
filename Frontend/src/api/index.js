@@ -22,6 +22,9 @@ api.interceptors.request.use((config) => {
 export const login    = (data) => api.post('/login', data);
 export const register = (data) => api.post('/register', data);
 export const sendOtp  = (email) => api.post('/auth/send-otp', { email });
+export const forgotPasswordSendOtp = (email) => api.post('/auth/forgot-password/send-otp', { email });
+export const forgotPasswordReset = (email, otp, new_password) => api.post('/auth/forgot-password/reset', { email, otp, new_password });
+
 export const loginWithGoogle = (token) => api.post('/auth/google', { token });
 export const getMe    = ()     => api.get('/me');
 

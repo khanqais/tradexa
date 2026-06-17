@@ -23,7 +23,6 @@ func ConnectRedis() {
 
 	RDB = redis.NewClient(opts)
 
-	// Ping to verify connection
 	ctx := context.Background()
 	if _, err := RDB.Ping(ctx).Result(); err != nil {
 		log.Fatalf("[Redis] Failed to connect: %v", err)

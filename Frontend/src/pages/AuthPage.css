@@ -257,3 +257,66 @@
 .auth-form__divider span {
   padding: 0 var(--sp-3);
 }
+
+/* ── Forgot Password ─────────────────────────────────────── */
+.auth-forgot__header {
+  padding: var(--sp-6) var(--sp-6) var(--sp-4);
+  border-bottom: 1px solid var(--ink-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.auth-forgot__back {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  transition: color var(--t-fast);
+  align-self: flex-start;
+}
+.auth-forgot__back:hover { color: var(--verd-light); }
+
+.auth-forgot__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.auth-forgot__subtitle {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.auth-forgot__success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(46, 107, 96, 0.15);
+  border: 1px solid var(--verd);
+  color: var(--verd-light);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+/* Success banner (green, mirrors error banner) */
+.auth-card__success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(46, 107, 96, 0.12);
+  border-bottom: 1px solid rgba(46, 107, 96, 0.3);
+  padding: 12px 24px;
+  font-size: 0.875rem;
+  color: var(--verd-light);
+  overflow: hidden;
+}

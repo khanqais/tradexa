@@ -22,6 +22,8 @@ func RegisterRoutes(r *gin.Engine) {
 		api.POST("/register", handlers.Register)
 
 		api.POST("/auth/send-otp", middleware.RateLimit("rl:otp", middleware.ByIP, 5, 1*time.Hour), handlers.SendOTP)
+		api.POST("/auth/forgot-password/send-otp", middleware.RateLimit("rl:forgot", middleware.ByIP, 3, 1*time.Hour), handlers.ForgotPasswordSendOTP)
+		api.POST("/auth/forgot-password/reset", handlers.ForgotPasswordReset)
 
 		api.POST("/auth/google", handlers.GoogleLogin)
 		api.GET("/listings", handlers.GetListings)
