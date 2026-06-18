@@ -414,8 +414,8 @@ func BidHandler(c *gin.Context) {
 		minRequiredBid = currentPublicPrice + bidIncrement
 	}
 
-	// We must allow the CURRENT proxy owner to self-bump even if their new max doesn't fit the public increment, 
-	// as long as it's higher than their current max (handled later). 
+	// We must allow the CURRENT proxy owner to self-bump even if their new max doesn't fit the public increment,
+	// as long as it's higher than their current max (handled later).
 	// But to do that, we need to know if they are the current proxy.
 	var currentProxy models.ProxyBid
 	hasProxy := true
@@ -436,8 +436,6 @@ func BidHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Your max bid must be at least %.2f", minRequiredBid)})
 		return
 	}
-
-
 
 	var finalPublicBidAmount float64
 	var winningBidderID uint

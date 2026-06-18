@@ -17,45 +17,38 @@ import (
 	"gorm.io/gorm"
 )
 
-// HandleAuctionCloseTask processes the "auction:close" job
 func HandleAuctionCloseTask(ctx context.Context, t *asynq.Task) error {
 	var payload tasks.AuctionClosePayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return err // Asynq will retry if we return an error
+		return err
 	}
 
 	var listing models.Listing
 	if err := config.DB.First(&listing, payload.ListingID).Error; err != nil {
 		log.Printf("[AuctionWorker] Listing %d not found, dropping task.", payload.ListingID)
-		return nil // Return nil so Asynq stops retrying a deleted listing
+		return nil
 	}
 
-	// Safety guard — skip if already processed
 	if listing.IsSold || (listing.Status != "" && listing.Status != "active") {
 		log.Printf("[AuctionWorker] Listing %d already closed, dropping task.", payload.ListingID)
 		return nil
 	}
 
-	// -------------------------------------------------------------
 	// ANTI-SNIPE MAGIC: The Lazy Re-evaluation Pattern
-	// -------------------------------------------------------------
 	if listing.AuctionEndsAt != nil && time.Now().Before(*listing.AuctionEndsAt) {
 		log.Printf("[AuctionWorker] Auction %d was extended! Rescheduling for %v", listing.ID, listing.AuctionEndsAt)
 
 		newTask, _ := tasks.NewAuctionCloseTask(listing.ID)
 
-		// Enqueue the delayed task
 		_, err := config.AsynqClient.Enqueue(newTask, asynq.ProcessAt(*listing.AuctionEndsAt))
 		if err != nil {
 			log.Printf("[AuctionWorker] Failed to requeue extended auction: %v", err)
 			return err
 		}
 
-		// Return nil to mark THIS specific job as successfully complete
 		return nil
 	}
 
-	// If we passed the check, the auction is genuinely over!
 	processAuctionClosure(config.DB, listing)
 
 	return nil
