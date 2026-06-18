@@ -32,6 +32,8 @@ type Listing struct {
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index:idx_listings_is_sold_created,priority:3" json:"-"`
 	HighestBid    *float64       `gorm:"-" json:"highest_bid,omitempty"`
+	HighestBidder string         `gorm:"-" json:"highest_bidder,omitempty"`
+	UserMaxBid    *float64       `gorm:"-" json:"user_max_bid,omitempty"`
 }
 
 type ListingImage struct {

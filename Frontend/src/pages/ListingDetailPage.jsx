@@ -97,6 +97,9 @@ export default function ListingDetailPage() {
         setListing((prev) => {
           if (!prev) return prev;
           const updates = { ...prev, highest_bid: Number(data.amount) };
+          if (data.winning_bidder_name) {
+            updates.highest_bidder = data.winning_bidder_name;
+          }
           // Update auction_ends_at if the server sent a new one (anti-snipe extension)
           if (data.auction_ends_at) {
             updates.auction_ends_at = data.auction_ends_at;
@@ -171,17 +174,18 @@ export default function ListingDetailPage() {
         amount: Number(amount),
       });
 
-      const bid = res.data.bid;
-      setCurrentBid(Number(bid.amount));
+      const newPrice = res.data.current_price;
+      setCurrentBid(Number(newPrice));
       setListing((prev) =>
         prev
           ? {
             ...prev,
-            highest_bid: Number(bid.amount),
+            highest_bid: Number(newPrice),
+            user_max_bid: Number(amount),
           }
           : prev
       );
-      setBidSuccess(`Your bid of ${formatPrice(bid.amount)} was placed successfully.`);
+      setBidSuccess(`Your max bid was processed. Current price is now ${formatPrice(newPrice)}.`);
       setAmount('');
       console.log('Bid placed:', res.data);
     } catch (err) {
@@ -403,6 +407,11 @@ export default function ListingDetailPage() {
                   >
                     {hasLiveBid ? formatPrice(liveBid) : 'No bids yet'}
                   </span>
+                  {hasLiveBid && listing.highest_bidder && !listing.is_sold && !auctionStatus && (
+                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '-0.2rem' }}>
+                      Winning: {listing.highest_bidder}
+                    </span>
+                  )}
                 </motion.div>
               )}
 
@@ -418,12 +427,20 @@ export default function ListingDetailPage() {
 
             {!listing.is_sold && !isOwner && !auctionStatus && listing.type === 'auction' && (
               <div className="detail__bid-section">
+                {listing.user_max_bid && (
+                  <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#15803d', fontSize: '0.9rem', fontWeight: 500 }}>
+                    Your current maximum proxy bid is {formatPrice(listing.user_max_bid)}.
+                  </div>
+                )}
                 <label className="detail__bid-label">
-                  Your Bid
+                  Maximum Proxy Bid
                   <span style={{ marginLeft: '0.5rem', color: '#94a3b8', fontWeight: 500 }}>
-                    Min: {formatPrice(minimumNextBid)}
+                    (Min: {formatPrice(minimumNextBid)})
                   </span>
                 </label>
+                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                  We'll automatically bid on your behalf to keep you in the lead, up to your limit.
+                </p>
 
                 <div className="detail__bid-input-group">
                   <span className="detail__bid-currency">$</span>
@@ -443,7 +460,7 @@ export default function ListingDetailPage() {
                   disabled={bidLoading}
                 >
                   {bidLoading && <Zap size={16} strokeWidth={2} />}
-                  {bidLoading ? 'Placing Bid...' : hasLiveBid ? 'Place Higher Bid' : 'Place First Bid'}
+                  {bidLoading ? 'Placing Bid...' : 'Set Maximum Bid'}
                 </button>
 
                 <AnimatePresence mode="wait">

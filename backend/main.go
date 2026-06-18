@@ -24,7 +24,7 @@ func main() {
 	config.ConnectDB()
 	config.ConnectCloudinary()
 	config.ConnectRedis()
-	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{}, &models.Order{})
+	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{}, &models.Order{}, &models.ProxyBid{})
 	config.RunMigrations(config.DB)
 
 	config.InitAsynq()

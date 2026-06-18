@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +16,28 @@ import (
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/tasks"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+func maskName(name string, id uint) string {
+	words := strings.Fields(name)
+	firstWord := name
+	if len(words) > 0 {
+		firstWord = words[0]
+	}
+
+	if len(firstWord) <= 1 {
+		firstWord = firstWord + "x"
+	}
+
+	firstLetter := string(firstWord[0])
+	lastLetter := string(firstWord[len(firstWord)-1])
+
+	hash := sha256.Sum256([]byte(fmt.Sprintf("secret_salt_%d", id)))
+	uniqueTag := fmt.Sprintf("%x", hash[0:2])
+
+	return fmt.Sprintf("%s***%s-%s", strings.ToUpper(firstLetter), strings.ToLower(lastLetter), uniqueTag[:4])
+}
 
 type CreateListingInput struct {
 	Title         string     `json:"title" binding:"required,min=3"`
@@ -122,6 +144,20 @@ func GetListingByID(c *gin.Context) {
 		Order("amount desc").
 		First(&highestBid).Error; err == nil {
 		listing.HighestBid = &highestBid.Amount
+
+		var bidder models.User
+		if err := config.DB.First(&bidder, highestBid.BidderID).Error; err == nil {
+			listing.HighestBidder = maskName(bidder.Name, bidder.ID)
+		}
+	}
+
+	rawID, exist := c.Get("user_id")
+	if exist {
+		bidderID := uint(rawID.(float64))
+		var proxy models.ProxyBid
+		if err := config.DB.Where("listing_id = ? AND bidder_id = ?", listing.ID, bidderID).First(&proxy).Error; err == nil {
+			listing.UserMaxBid = &proxy.MaxAmount
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"listing": listing})
@@ -309,16 +345,12 @@ func BidHandler(c *gin.Context) {
 	var input NewBid
 	err := c.ShouldBindJSON(&input)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	rawID, exist := c.Get("user_id")
 	if !exist {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 	bidderID := uint(rawID.(float64))
@@ -330,7 +362,7 @@ func BidHandler(c *gin.Context) {
 		}
 	}()
 	var listing models.Listing
-	if err := tx.First(&listing, input.ListingID).Error; err != nil {
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&listing, input.ListingID).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
 		return
@@ -359,61 +391,144 @@ func BidHandler(c *gin.Context) {
 		return
 	}
 
-	var highestBid models.Bid
-	errr := tx.Where("listing_id = ?", input.ListingID).Order("amount desc").First(&highestBid).Error
-
-	if errr != nil {
-		if errors.Is(errr, gorm.ErrRecordNotFound) {
-			if input.Amount < uint(listing.Price) {
-				tx.Rollback()
-				c.JSON(http.StatusBadRequest, gin.H{"error": "first bid must be at least the starting price"})
-				return
-			}
+	var highestPublicBid models.Bid
+	hasPublicBid := true
+	if err := tx.Where("listing_id = ?", input.ListingID).Order("amount desc").First(&highestPublicBid).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			hasPublicBid = false
 		} else {
 			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": errr.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-	} else {
-		if input.Amount <= uint(highestBid.Amount) {
+	}
+
+	currentPublicPrice := listing.Price
+	if hasPublicBid {
+		currentPublicPrice = highestPublicBid.Amount
+	}
+
+	bidIncrement := 5.0
+	minRequiredBid := listing.Price
+	if hasPublicBid {
+		minRequiredBid = currentPublicPrice + bidIncrement
+	}
+
+	// We must allow the CURRENT proxy owner to self-bump even if their new max doesn't fit the public increment, 
+	// as long as it's higher than their current max (handled later). 
+	// But to do that, we need to know if they are the current proxy.
+	var currentProxy models.ProxyBid
+	hasProxy := true
+	if err := tx.Where("listing_id = ?", input.ListingID).First(&currentProxy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			hasProxy = false
+		} else {
 			tx.Rollback()
-			c.JSON(http.StatusBadRequest, gin.H{"error": "bid must be higher than the current highest bid"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 			return
 		}
 	}
-	newBid := models.Bid{
-		ListingID: input.ListingID,
-		BidderID:  bidderID,
-		Amount:    float64(input.Amount),
-	}
-	if err := tx.Create(&newBid).Error; err != nil {
+
+	isSelfBump := hasProxy && currentProxy.BidderID == bidderID
+
+	if !isSelfBump && float64(input.Amount) < minRequiredBid {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to place bid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Your max bid must be at least %.2f", minRequiredBid)})
 		return
 	}
-	tx.Commit()
 
-	// Anti-snipe
-	if listing.AuctionEndsAt != nil {
-		timeLeft := time.Until(*listing.AuctionEndsAt)
-		if timeLeft > 0 && timeLeft <= 60*time.Second {
-			newEnd := time.Now().Add(2 * time.Minute)
-			config.DB.Model(&listing).Update("auction_ends_at", newEnd)
-			listing.AuctionEndsAt = &newEnd
 
-			extPayload, _ := json.Marshal(map[string]interface{}{
-				"type":                "timer_extended",
-				"listing_id":          listing.ID,
-				"new_auction_ends_at": newEnd,
-			})
-			StreamHub.Broadcast(listing.ID, extPayload)
+
+	var finalPublicBidAmount float64
+	var winningBidderID uint
+
+	if !hasProxy {
+		finalPublicBidAmount = currentPublicPrice
+		winningBidderID = bidderID
+
+		proxy := models.ProxyBid{
+			ListingID: listing.ID,
+			BidderID:  bidderID,
+			MaxAmount: float64(input.Amount),
+		}
+		if err := tx.Create(&proxy).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create proxy"})
+			return
+		}
+
+		newBid := models.Bid{
+			ListingID: listing.ID,
+			BidderID:  bidderID,
+			Amount:    finalPublicBidAmount,
+		}
+		tx.Create(&newBid)
+
+	} else {
+		if currentProxy.BidderID == bidderID {
+			if float64(input.Amount) <= currentProxy.MaxAmount {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": "new max bid must be higher than your current max bid"})
+				return
+			}
+			currentProxy.MaxAmount = float64(input.Amount)
+			tx.Save(&currentProxy)
+			finalPublicBidAmount = currentPublicPrice
+			winningBidderID = bidderID
+
+		} else {
+			newUserMax := float64(input.Amount)
+			oldProxyMax := currentProxy.MaxAmount
+
+			if newUserMax > oldProxyMax {
+				fightPrice := oldProxyMax + bidIncrement
+				if fightPrice > newUserMax {
+					fightPrice = newUserMax
+				}
+
+				tx.Create(&models.Bid{ListingID: listing.ID, BidderID: currentProxy.BidderID, Amount: oldProxyMax})
+				tx.Create(&models.Bid{ListingID: listing.ID, BidderID: bidderID, Amount: fightPrice})
+
+				currentProxy.BidderID = bidderID
+				currentProxy.MaxAmount = newUserMax
+				tx.Save(&currentProxy)
+
+				finalPublicBidAmount = fightPrice
+				winningBidderID = bidderID
+
+			} else if newUserMax < oldProxyMax {
+				fightPrice := newUserMax + bidIncrement
+				if fightPrice > oldProxyMax {
+					fightPrice = oldProxyMax
+				}
+
+				tx.Create(&models.Bid{ListingID: listing.ID, BidderID: bidderID, Amount: newUserMax})
+				tx.Create(&models.Bid{ListingID: listing.ID, BidderID: currentProxy.BidderID, Amount: fightPrice})
+
+				finalPublicBidAmount = fightPrice
+				winningBidderID = currentProxy.BidderID
+
+			} else {
+				fightPrice := oldProxyMax
+				tx.Create(&models.Bid{ListingID: listing.ID, BidderID: bidderID, Amount: newUserMax})
+				tx.Create(&models.Bid{ListingID: listing.ID, BidderID: currentProxy.BidderID, Amount: fightPrice})
+
+				finalPublicBidAmount = fightPrice
+				winningBidderID = currentProxy.BidderID
+			}
 		}
 	}
 
+	tx.Commit()
+
+	var winner models.User
+	config.DB.First(&winner, winningBidderID)
+
 	payload := map[string]interface{}{
-		"type":       "new_bid",
-		"listing_id": newBid.ListingID,
-		"amount":     newBid.Amount,
+		"type":                "new_bid",
+		"listing_id":          listing.ID,
+		"amount":              finalPublicBidAmount,
+		"winning_bidder_name": maskName(winner.Name, winner.ID),
 	}
 	if listing.AuctionEndsAt != nil {
 		payload["auction_ends_at"] = *listing.AuctionEndsAt
@@ -422,11 +537,11 @@ func BidHandler(c *gin.Context) {
 	if err != nil {
 		fmt.Println("Error marshaling payload:", err)
 	}
-	StreamHub.Broadcast(newBid.ListingID, messageBytes)
+	StreamHub.Broadcast(listing.ID, messageBytes)
 
 	c.JSON(http.StatusOK, gin.H{
-		"Message": "bid placed successfully",
-		"bid":     newBid,
+		"Message":        "bid placed successfully",
+		"current_price":  finalPublicBidAmount,
+		"winning_bidder": winningBidderID,
 	})
-
 }

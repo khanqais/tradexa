@@ -82,3 +82,42 @@ func BlacklistToken(tokenString string, ttl time.Duration) error {
 	ctx := context.Background()
 	return config.RDB.Set(ctx, "blacklist:"+tokenString, "1", ttl).Err()
 }
+
+func OptionalAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var tokenString string
+
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+				tokenString = parts[1]
+			}
+		}
+
+		if tokenString == "" {
+			tokenString = strings.TrimSpace(c.Query("token"))
+		}
+
+		if tokenString != "" {
+			secret := os.Getenv("JWT_SECRET")
+			token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, jwt.ErrTokenSignatureInvalid
+				}
+				return []byte(secret), nil
+			})
+
+			if err == nil && token.Valid {
+				if claims, ok := token.Claims.(jwt.MapClaims); ok {
+					c.Set("user_id", claims["user_id"])
+					c.Set("email", claims["email"])
+					c.Set("role", claims["role"])
+					c.Set("name", claims["name"])
+				}
+			}
+		}
+
+		c.Next()
+	}
+}
