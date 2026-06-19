@@ -10,7 +10,7 @@ const CATEGORIES = ['Electronics', 'Art', 'Fashion', 'Collectibles', 'Furniture'
 
 function toLocalDateTimeString(date) {
   const pad = n => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export default function CreateListingPage() {
@@ -30,10 +30,10 @@ export default function CreateListingPage() {
 
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
-  const [uploading, setUploading]   = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState('');
-  const [step, setStep]             = useState(1);
+  const [error, setError] = useState('');
+  const [step, setStep] = useState(1);
 
   const fileInputRef = useRef(null);
 
@@ -57,7 +57,7 @@ export default function CreateListingPage() {
     if (!files.length) return;
     const newFiles = [...imageFiles, ...files];
     setImageFiles(newFiles);
-    
+
     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setImagePreviews(newPreviews);
 
@@ -68,7 +68,7 @@ export default function CreateListingPage() {
     if (!files.length || !files.every(file => file.type.startsWith('image/'))) return;
     const newFiles = [...imageFiles, ...files];
     setImageFiles(newFiles);
-    
+
     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setImagePreviews(newPreviews);
   };
@@ -81,8 +81,7 @@ export default function CreateListingPage() {
       const urls = results.map(res => res.data.url);
       setForm(f => ({ ...f, image_urls: urls }));
       return urls;
-      setError('Image upload failed. Please try again.');
-      return null;
+
     } finally {
       setUploading(false);
     }
@@ -120,12 +119,12 @@ export default function CreateListingPage() {
       }
 
       const payload = {
-        title:        form.title.trim(),
-        description:  form.description.trim(),
-        price:        parseFloat(form.price),
-        type:         form.type,
-        category:     form.category,
-        image_urls:   imageUrls || [],
+        title: form.title.trim(),
+        description: form.description.trim(),
+        price: parseFloat(form.price),
+        type: form.type,
+        category: form.category,
+        image_urls: imageUrls || [],
       };
 
       if (form.reserve_price && parseFloat(form.reserve_price) > 0)

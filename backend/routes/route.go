@@ -27,8 +27,8 @@ func RegisterRoutes(r *gin.Engine) {
 
 		api.POST("/auth/google", handlers.GoogleLogin)
 		api.GET("/listings", handlers.GetListings)
-		api.GET("/listings/:id", middleware.OptionalAuth(), handlers.GetListingByID)
-		api.GET("/stream/:id", handlers.StreamBid)
+		api.GET("/listings/:id", middleware.ValidateParamInt("id"), middleware.OptionalAuth(), handlers.GetListingByID)
+		api.GET("/stream/:id", middleware.ValidateParamInt("id"), handlers.StreamBid)
 
 		api.POST("/payment/webhook", handlers.WebhookPayment)
 
@@ -41,17 +41,17 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.GET("/me", handlers.GetMe)
 			protected.POST("/me/avatar", handlers.UploadAvatar)
 			protected.POST("/listings", handlers.CreateListing)
-			protected.PUT("/listings/:id", handlers.UpdateListing)
-			protected.DELETE("/listings/:id", handlers.DeleteListing)
+			protected.PUT("/listings/:id", middleware.ValidateParamInt("id"), handlers.UpdateListing)
+			protected.DELETE("/listings/:id", middleware.ValidateParamInt("id"), handlers.DeleteListing)
 			protected.POST("/upload", handlers.UploadImage)
 			protected.POST("/conversations", handlers.GetOrCreateConversation)
 			protected.GET("/conversations", handlers.GetConversationsForUser)
-			protected.GET("/conversations/:conversationId/messages", handlers.GetMessagesForConversation)
+			protected.GET("/conversations/:conversationId/messages", middleware.ValidateParamInt("conversationId"), handlers.GetMessagesForConversation)
 			protected.POST("/payment/create-order", handlers.CreateCashfreeOrder)
 			protected.POST("/payment/verify", handlers.VerifyPayment)
-			protected.POST("/orders/:id/ship", handlers.MarkOrderShipped)
+			protected.POST("/orders/:id/ship", middleware.ValidateParamInt("id"), handlers.MarkOrderShipped)
 			protected.GET("/ws/notifications", handlers.NotificationHandler)
-			protected.GET("/ws/conversation/:conversationId", handlers.ConversationHandler)
+			protected.GET("/ws/conversation/:conversationId", middleware.ValidateParamInt("conversationId"), handlers.ConversationHandler)
 		}
 	}
 

@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,8 +21,8 @@ import (
 )
 
 type CreatePaymentRequest struct {
-	Amount    float64 `json:"amount" binding:"required,gt=0"`
-	ListingID uint    `json:"listing_id"`
+	Amount    float64 `json:"amount"` // Ignored by server, calculated server-side
+	ListingID uint    `json:"listing_id" binding:"required"`
 }
 
 func CreateCashfreeOrder(c *gin.Context) {
@@ -48,11 +51,29 @@ func CreateCashfreeOrder(c *gin.Context) {
 		return
 	}
 
+	var amount float64
+	if listing.Type == models.ListingTypeFixed {
+		amount = listing.Price
+	} else if listing.Type == models.ListingTypeAuction {
+		var highestBid models.Bid
+		if err := config.DB.Where("listing_id = ?", listing.ID).Order("amount DESC").First(&highestBid).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No bids found for this auction"})
+			return
+		}
+		if highestBid.BidderID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only the winning bidder can pay for this auction"})
+			return
+		}
+		amount = highestBid.Amount
+	} else {
+		amount = listing.Price
+	}
+
 	order := models.Order{
 		ListingID: req.ListingID,
 		WinnerID:  userID,
 		SellerID:  listing.SellerID,
-		Amount:    req.Amount,
+		Amount:    amount,
 		Status:    models.OrderStatusPendingPayment,
 	}
 
@@ -64,7 +85,7 @@ func CreateCashfreeOrder(c *gin.Context) {
 	orderID := fmt.Sprintf("txn_%d_%d", order.ID, time.Now().Unix())
 
 	payload := map[string]interface{}{
-		"order_amount":   req.Amount,
+		"order_amount":   amount,
 		"order_currency": "INR",
 		"order_id":       orderID,
 		"customer_details": map[string]string{
@@ -185,11 +206,39 @@ func VerifyPayment(c *gin.Context) {
 }
 
 func WebhookPayment(c *gin.Context) {
-	// Cashfree webhook comes as POST with JSON body.
-	// For minimal implementation, we verify body, get order_id, check status.
-	// Production should verify x-webhook-signature!
+	// Cashfree webhook signature verification
+	appSecret := os.Getenv("CASHFREE_SECRET_KEY")
+	if appSecret == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cashfree secret key not configured"})
+		return
+	}
+
+	timestamp := c.GetHeader("x-webhook-timestamp")
+	signature := c.GetHeader("x-webhook-signature")
+	if timestamp == "" || signature == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing webhook signature or timestamp headers"})
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
+	}
+
+	// Calculate signature: Base64(HMAC_SHA256(timestamp + rawBody, secretKey))
+	mac := hmac.New(sha256.New, []byte(appSecret))
+	mac.Write([]byte(timestamp))
+	mac.Write(bodyBytes)
+	expectedSignature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid webhook signature"})
+		return
+	}
+
 	var payload map[string]interface{}
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
 		return
 	}
