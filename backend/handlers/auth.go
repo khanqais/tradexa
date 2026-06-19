@@ -218,8 +218,7 @@ func Login(c *gin.Context) {
 	if err != nil {
 		log.Printf("failed to sign jwt token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "failed to generate token",
-			"detail": err.Error(),
+			"error": "failed to generate token",
 		})
 		return
 	}

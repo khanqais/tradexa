@@ -211,7 +211,10 @@ func GetListings(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	var total int64
-	query.Model(&models.Listing{}).Count(&total)
+	if err := query.Model(&models.Listing{}).Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count listings"})
+		return
+	}
 
 	if err := query.Limit(limit).Offset(offset).Order("created_at DESC").Find(&listings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch listings"})
@@ -425,9 +428,6 @@ func BidHandler(c *gin.Context) {
 		minRequiredBid = currentPublicPrice + bidIncrement
 	}
 
-	// We must allow the CURRENT proxy owner to self-bump even if their new max doesn't fit the public increment,
-	// as long as it's higher than their current max (handled later).
-	// But to do that, we need to know if they are the current proxy.
 	var currentProxy models.ProxyBid
 	hasProxy := true
 	if err := tx.Where("listing_id = ?", input.ListingID).First(&currentProxy).Error; err != nil {

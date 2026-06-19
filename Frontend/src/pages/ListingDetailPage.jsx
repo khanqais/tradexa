@@ -383,21 +383,23 @@ export default function ListingDetailPage() {
 
             <AnimatePresence>
               {auctionStatus === 'sold' && (
-                <motion.div
+                              <motion.div
                   className="detail__auction-banner detail__auction-banner--sold"
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <span style={{ fontSize: '1.25rem' }}>🏆</span>
+                  <span style={{ fontSize: '1.25rem' }}>{isOwner ? '📦' : '🏆'}</span>
                   <div style={{ flex: 1 }}>
-                    <strong>Auction Ended — Item Sold!</strong>
+                    <strong>{isOwner ? 'Auction Ended — Your Item Sold!' : 'Auction Ended — Item Sold!'}</strong>
                     <p style={{ margin: '0.25rem 0 0', opacity: 0.85, fontSize: '0.85rem' }}>
-                      The winning bid was {formatPrice(liveBid)}. The winner has been notified.
+                      The winning bid was {formatPrice(liveBid)}. {isOwner ? 'Waiting for the buyer to complete payment.' : 'Please complete your payment to claim the item.'}
                     </p>
-                    <button onClick={handlePayment} className="btn btn--primary btn--sm" style={{ marginTop: '0.75rem' }}>
-                      Pay Now with Cashfree (Test)
-                    </button>
+                    {!isOwner && (
+                      <button onClick={handlePayment} className="btn btn--primary btn--sm" style={{ marginTop: '0.75rem' }}>
+                        Pay Now with Cashfree (Test)
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               )}
