@@ -57,6 +57,9 @@ export const uploadAvatar = (file) => {
 export const getChatHistory = (listingId) => api.get(`/chat/${listingId}/history`);
 
 export const createBid = (data) => api.post('/bid', data);
+export const createPaymentOrder = (data) => api.post('/payment/create-order', data);
+export const verifyPaymentOrder = (data) => api.post('/payment/verify', data);
+export const shipOrder = (orderId) => api.post(`/orders/${orderId}/ship`);
 
 export const createChatSocket = (listingId) => {
   const token = localStorage.getItem('tradexa_token');

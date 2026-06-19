@@ -5,7 +5,7 @@ import {
   Zap, Package, AlertTriangle, MessageSquare,
   Pencil, Trash2, Clock, ShieldCheck,
 } from 'lucide-react';
-import { API_BASE, getListingById, deleteListing, createConversation, createBid } from '../api';
+import { API_BASE, getListingById, deleteListing, createConversation, createBid, createPaymentOrder, shipOrder } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Spinner } from '../components/Spinner';
 import './ListingDetailPage.css';
@@ -209,6 +209,22 @@ export default function ListingDetailPage() {
     }
   };
 
+  const handleShipOrder = async () => {
+    if (!listing?.order?.id) return;
+    try {
+      const res = await shipOrder(listing.order.id);
+      alert(res.data.message || "Item shipped!");
+      // Optionally trigger a reload or update local state
+      setListing(prev => ({
+        ...prev,
+        order: { ...prev.order, status: 'shipped' }
+      }));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to mark as shipped");
+    }
+  };
+
   if (loading) {
     return (
       <div className="detail-loading">
@@ -216,7 +232,27 @@ export default function ListingDetailPage() {
         <p>Loading listing…</p>
       </div>
     );
-  }
+  }  const handlePayment = async () => {
+    try {
+      const res = await createPaymentOrder({
+        amount: currentBid || listing.price,
+        listing_id: listing.id
+      });
+      const sessionId = res.data.payment_session_id;
+      if (sessionId && window.Cashfree) {
+        const cashfree = window.Cashfree({
+          mode: "sandbox",
+        });
+        cashfree.checkout({
+          paymentSessionId: sessionId
+        });
+      }
+    } catch (err) {
+      console.error("Payment failed", err);
+      alert("Payment initialization failed");
+    }
+  };
+
 
   if (error || !listing) {
     return (
@@ -354,11 +390,14 @@ export default function ListingDetailPage() {
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <span style={{ fontSize: '1.25rem' }}>🏆</span>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <strong>Auction Ended — Item Sold!</strong>
                     <p style={{ margin: '0.25rem 0 0', opacity: 0.85, fontSize: '0.85rem' }}>
                       The winning bid was {formatPrice(liveBid)}. The winner has been notified.
                     </p>
+                    <button onClick={handlePayment} className="btn btn--primary btn--sm" style={{ marginTop: '0.75rem' }}>
+                      Pay Now with Cashfree (Test)
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -487,7 +526,7 @@ export default function ListingDetailPage() {
             )}
 
             {!listing.is_sold && !isOwner && listing.type !== 'auction' && (
-              <div className="detail__cta">
+              <div className="detail__cta" style={{ flexDirection: 'column' }}>
                 <button
                   className="btn btn--amber btn--lg detail__cta-btn"
                   onClick={handleChat}
@@ -495,6 +534,29 @@ export default function ListingDetailPage() {
                   {chatLoading && <MessageSquare size={16} strokeWidth={2} />}
                   Contact Seller
                 </button>
+                <button
+                  className="btn btn--primary btn--lg detail__cta-btn"
+                  onClick={handlePayment}
+                >
+                  Buy Now with Cashfree (Test)
+                </button>
+              </div>
+            )}
+
+            {isOwner && listing.is_sold && listing.order && (
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                <h4 style={{ margin: '0 0 0.5rem', color: '#0f172a' }}>📦 Seller Dashboard</h4>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: '#475569' }}>
+                  Order Status: <strong style={{ textTransform: 'uppercase' }}>{listing.order.status.replace(/_/g, ' ')}</strong>
+                </p>
+                {listing.order.status === 'paid_in_escrow' && (
+                  <button onClick={handleShipOrder} className="btn btn--primary btn--sm" style={{ width: '100%' }}>
+                    Mark as Shipped
+                  </button>
+                )}
+                {listing.order.status === 'shipped' && (
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#10b981' }}>Item marked as shipped. Waiting for delivery...</p>
+                )}
               </div>
             )}
 

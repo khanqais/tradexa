@@ -11,6 +11,7 @@ import AuctionsPage from './pages/AuctionsPage';
 import ConversationsPage from './pages/ConversationsPage';
 import ConversationDetailPage from './pages/ConversationDetailPage';
 import BuyProductsPage from './pages/BuyProductsPage';
+import PaymentStatusPage from './pages/PaymentStatusPage';
 import './App.css';
 
 function Footer() {
@@ -58,6 +59,7 @@ export default function App() {
                 <Route path="/buy-products"  element={<BuyProductsPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />
                 <Route path="/conversations/:conversationId" element={<ConversationDetailPage />} />
+                <Route path="/payment-status" element={<PaymentStatusPage />} />
                 <Route path="*" element={
                   <div style={{
                     minHeight: '60vh',

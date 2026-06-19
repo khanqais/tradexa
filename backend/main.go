@@ -57,6 +57,7 @@ func main() {
 func startAsynqWorker() {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeAuctionClose, workers.HandleAuctionCloseTask)
+	mux.HandleFunc(tasks.TypeSimulateDelivery, workers.HandleSimulateDeliveryTask)
 
 	if err := config.AsynqServer.Run(mux); err != nil {
 		log.Fatalf("Could not run Asynq server: %v", err)

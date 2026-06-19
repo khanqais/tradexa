@@ -6,7 +6,10 @@ type OrderStatus string
 
 const (
 	OrderStatusPendingPayment OrderStatus = "pending_payment"
-	OrderStatusPaid           OrderStatus = "paid"
+	OrderStatusPaidInEscrow   OrderStatus = "paid_in_escrow"
+	OrderStatusShipped        OrderStatus = "shipped"
+	OrderStatusDelivered      OrderStatus = "delivered"
+	OrderStatusFailed         OrderStatus = "failed"
 	OrderStatusCancelled      OrderStatus = "cancelled"
 )
 

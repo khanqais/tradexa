@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/hibiken/asynq"
 )
@@ -27,7 +28,8 @@ func InitAsynq() {
 	AsynqServer = asynq.NewServer(
 		redisOpt,
 		asynq.Config{
-			Concurrency: 10,
+			Concurrency:              10,
+			DelayedTaskCheckInterval: 30 * time.Second,
 			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
 				log.Printf("[Asynq Error] Task %s failed: %v", task.Type(), err)
 			}),

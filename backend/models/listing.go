@@ -34,6 +34,7 @@ type Listing struct {
 	HighestBid    *float64       `gorm:"-" json:"highest_bid,omitempty"`
 	HighestBidder string         `gorm:"-" json:"highest_bidder,omitempty"`
 	UserMaxBid    *float64       `gorm:"-" json:"user_max_bid,omitempty"`
+	Order         *Order         `gorm:"-" json:"order,omitempty"`
 }
 
 type ListingImage struct {

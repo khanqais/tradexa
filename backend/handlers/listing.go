@@ -138,6 +138,17 @@ func GetListingByID(c *gin.Context) {
 
 	listing.Seller.Password = ""
 
+	rawID, _ := c.Get("user_id")
+	if rawID != nil && listing.IsSold {
+		userID := uint(rawID.(float64))
+		if listing.SellerID == userID {
+			var order models.Order
+			if err := config.DB.Where("listing_id = ? AND status IN ?", listing.ID, []models.OrderStatus{models.OrderStatusPaidInEscrow, models.OrderStatusShipped, models.OrderStatusDelivered}).First(&order).Error; err == nil {
+				listing.Order = &order
+			}
+		}
+	}
+
 	var highestBid models.Bid
 	if err := config.DB.WithContext(c.Request.Context()).
 		Where("listing_id = ?", listing.ID).

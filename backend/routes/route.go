@@ -30,6 +30,8 @@ func RegisterRoutes(r *gin.Engine) {
 		api.GET("/listings/:id", middleware.OptionalAuth(), handlers.GetListingByID)
 		api.GET("/stream/:id", handlers.StreamBid)
 
+		api.POST("/payment/webhook", handlers.WebhookPayment)
+
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{
@@ -45,6 +47,9 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.POST("/conversations", handlers.GetOrCreateConversation)
 			protected.GET("/conversations", handlers.GetConversationsForUser)
 			protected.GET("/conversations/:conversationId/messages", handlers.GetMessagesForConversation)
+			protected.POST("/payment/create-order", handlers.CreateCashfreeOrder)
+			protected.POST("/payment/verify", handlers.VerifyPayment)
+			protected.POST("/orders/:id/ship", handlers.MarkOrderShipped)
 			protected.GET("/ws/notifications", handlers.NotificationHandler)
 			protected.GET("/ws/conversation/:conversationId", handlers.ConversationHandler)
 		}
