@@ -15,6 +15,8 @@ import (
 	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/tasks"
+	"github.com/khanqais/tradexa/utils"
+	ws "github.com/khanqais/tradexa/websocket"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -450,6 +452,7 @@ func BidHandler(c *gin.Context) {
 
 	var finalPublicBidAmount float64
 	var winningBidderID uint
+	var outbidUserID uint
 
 	if !hasProxy {
 		finalPublicBidAmount = currentPublicPrice
@@ -490,6 +493,7 @@ func BidHandler(c *gin.Context) {
 			oldProxyMax := currentProxy.MaxAmount
 
 			if newUserMax > oldProxyMax {
+				outbidUserID = currentProxy.BidderID
 				fightPrice := oldProxyMax + bidIncrement
 				if fightPrice > newUserMax {
 					fightPrice = newUserMax
@@ -530,6 +534,10 @@ func BidHandler(c *gin.Context) {
 
 	tx.Commit()
 
+	if outbidUserID != 0 {
+		go sendOutbidNotifications(listing, outbidUserID, finalPublicBidAmount)
+	}
+
 	var winner models.User
 	config.DB.First(&winner, winningBidderID)
 
@@ -553,4 +561,40 @@ func BidHandler(c *gin.Context) {
 		"current_price":  finalPublicBidAmount,
 		"winning_bidder": winningBidderID,
 	})
+}
+
+func sendOutbidNotifications(listing models.Listing, outbidUserID uint, newPrice float64) {
+	var outbidUser models.User
+	if err := config.DB.First(&outbidUser, outbidUserID).Error; err != nil {
+		fmt.Printf("[BidHandler] Failed to find outbid user %d: %v\n", outbidUserID, err)
+		return
+	}
+
+	// 1. WebSocket Notification
+	notifPayload, _ := json.Marshal(map[string]interface{}{
+		"type":       "outbid",
+		"listing_id": listing.ID,
+		"title":      listing.Title,
+		"new_price":  newPrice,
+	})
+	ws.Manager.NotifyUser(outbidUserID, notifPayload)
+
+	// 2. Email Notification
+	subject := fmt.Sprintf("⚠️ You have been outbid on \"%s\"!", listing.Title)
+	body := fmt.Sprintf(`
+	<div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px;">
+		<h2 style="color: #333;">You've been outbid, %s!</h2>
+		<p>Someone placed a higher bid on <strong>%s</strong>.</p>
+		<div style="font-size: 20px; font-weight: bold; background-color: #fef08a; padding: 15px; border-radius: 4px; text-align: center; margin: 20px 0; color: #854d0e;">
+			Current Bid: $%.0f
+		</div>
+		<p>Don't let it get away! Log back in to increase your max bid and stay in the lead.</p>
+		<hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+		<p style="color: #999; font-size: 12px; text-align: center;">Tradexa &copy; 2026. All rights reserved.</p>
+	</div>
+	`, outbidUser.Name, listing.Title, newPrice)
+
+	if err := utils.SendEmail(outbidUser.Email, subject, body); err != nil {
+		fmt.Printf("[BidHandler] Failed to send outbid email to %s: %v\n", outbidUser.Email, err)
+	}
 }
