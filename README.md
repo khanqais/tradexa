@@ -9,10 +9,10 @@
 ## Table of Contents
 
 - [Features](#features)
+- [Performance](#performance)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [File Structure](#file-structure)
-- [Performance](#performance)
 - [Proxy Bidding — Usage Guide](#proxy-bidding--usage-guide)
 - [API Reference](#api-reference)
 - [Environment Variables](#environment-variables)
@@ -55,6 +55,58 @@
 - **JWT-based sessions** with HTTP-only cookie strategy
 - **Rate limiting** via Redis (per-IP; configurable per route)
 - **Row-level locking** (`SELECT ... FOR UPDATE`) on the bid transaction to prevent race conditions
+
+---
+
+## Performance
+
+Tests run on **Windows / 12th Gen Intel Core i5-12450H** against an **in-memory SQLite** test DB.
+
+### Unit & Integration Tests (handlers package)
+```
+go test ./handlers/... -run "TestBidHandler" -v
+
+TestBidHandler_InvalidJSON              PASS  (0.00s)
+TestBidHandler_ListingNotFound          PASS  (0.00s)
+TestBidHandler_CannotBidOnOwnListing    PASS  (0.01s)
+TestBidHandler_FirstBid_CreatesProxy    PASS  (0.00s)
+TestBidHandler_BelowMinimumIncrement    PASS  (0.00s)
+TestBidHandler_ProxyWar_NewBidderWins   PASS  (0.01s)
+TestBidHandler_ProxyWar_ExistingProxy   PASS  (0.01s)
+TestBidHandler_SelfProxyUpgrade         PASS  (0.00s)
+TestBidHandler_SelfProxyDowngrade       PASS  (0.01s)
+TestBidHandler_ExpiredAuction           PASS  (0.00s)
+TestBidHandler_ClosedAuction            PASS  (0.01s)
+```
+All 11 bid-logic scenarios **pass**.
+
+### Race-Detector Tests (`-race`)
+```
+go test ./handlers/... -race -v -timeout 60s
+
+TestConcurrentBids_RaceDetection    PASS — 11/20 concurrent bids succeeded (correct serialization)
+TestConcurrentBids_MultipleAuctions PASS — isolated per-listing locking verified
+TestHighThroughput_BidStorm         PASS — 100/100 sequential bids accepted
+Total elapsed: 6.933s
+```
+**Zero data races** detected.
+
+### High-Throughput Benchmark
+
+```
+go test -v -bench=BenchmarkBidHandler_FirstBid -benchmem github.com/khanqais/tradexa/handlers
+
+BenchmarkBidHandler_FirstBid-12    3056 iterations    438,037 ns/op    43 KB/op    657 allocs/op
+```
+
+| Metric | Value |
+|---|---|
+| Throughput (sequential) | **~1,678 bids/sec** |
+| Throughput (race mode) | **~590 bids/sec** |
+| Latency per bid | **438 µs** |
+| Memory per bid | **43 KB / 657 allocs** |
+| Concurrent safety | ✅ Row-level DB lock |
+| Data races | ✅ Zero (verified with `-race`) |
 
 ---
 
@@ -245,58 +297,6 @@ Tradexa/
             ├── ConversationDetailPage.jsx / .css
             └── PaymentStatusPage.jsx
 ```
-
----
-
-## Performance
-
-Tests run on **Windows / 12th Gen Intel Core i5-12450H** against an **in-memory SQLite** test DB.
-
-### Unit & Integration Tests (handlers package)
-```
-go test ./handlers/... -run "TestBidHandler" -v
-
-TestBidHandler_InvalidJSON              PASS  (0.00s)
-TestBidHandler_ListingNotFound          PASS  (0.00s)
-TestBidHandler_CannotBidOnOwnListing    PASS  (0.01s)
-TestBidHandler_FirstBid_CreatesProxy    PASS  (0.00s)
-TestBidHandler_BelowMinimumIncrement    PASS  (0.00s)
-TestBidHandler_ProxyWar_NewBidderWins   PASS  (0.01s)
-TestBidHandler_ProxyWar_ExistingProxy   PASS  (0.01s)
-TestBidHandler_SelfProxyUpgrade         PASS  (0.00s)
-TestBidHandler_SelfProxyDowngrade       PASS  (0.01s)
-TestBidHandler_ExpiredAuction           PASS  (0.00s)
-TestBidHandler_ClosedAuction            PASS  (0.01s)
-```
-All 11 bid-logic scenarios **pass**.
-
-### Race-Detector Tests (`-race`)
-```
-go test ./handlers/... -race -v -timeout 60s
-
-TestConcurrentBids_RaceDetection    PASS — 11/20 concurrent bids succeeded (correct serialization)
-TestConcurrentBids_MultipleAuctions PASS — isolated per-listing locking verified
-TestHighThroughput_BidStorm         PASS — 100/100 sequential bids accepted
-Total elapsed: 6.933s
-```
-**Zero data races** detected.
-
-### High-Throughput Benchmark
-
-```
-go test -v -bench=BenchmarkBidHandler_FirstBid -benchmem github.com/khanqais/tradexa/handlers
-
-BenchmarkBidHandler_FirstBid-12    3056 iterations    438,037 ns/op    43 KB/op    657 allocs/op
-```
-
-| Metric | Value |
-|---|---|
-| Throughput (sequential) | **~1,678 bids/sec** |
-| Throughput (race mode) | **~590 bids/sec** |
-| Latency per bid | **438 µs** |
-| Memory per bid | **43 KB / 657 allocs** |
-| Concurrent safety | ✅ Row-level DB lock |
-| Data races | ✅ Zero (verified with `-race`) |
 
 ---
 
