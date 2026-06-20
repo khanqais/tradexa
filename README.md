@@ -1,6 +1,6 @@
-[](url)# Tradexa
+**Tradexa**
 
-> A full-stack peer-to-peer marketplace supporting **fixed-price listings** and **live proxy-bidding auctions** — built for speed, concurrency-safety, and real-time interactivity.
+A full-stack peer-to-peer marketplace supporting **fixed-price listings** and **live proxy-bidding auctions** — built for speed, concurrency-safety, and real-time interactivity.
 
 🔗 **Live Demo:** [https://tradexa-1-zcv6.onrender.com](https://tradexa-1-zcv6.onrender.com)
 
