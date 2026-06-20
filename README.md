@@ -1,4 +1,4 @@
-# Tradexa
+[](url)# Tradexa
 
 > A full-stack peer-to-peer marketplace supporting **fixed-price listings** and **live proxy-bidding auctions** — built for speed, concurrency-safety, and real-time interactivity.
 
@@ -113,49 +113,8 @@ BenchmarkBidHandler_FirstBid-12    3056 iterations    438,037 ns/op    43 KB/op 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        Browser (React)                        │
-│   REST API (axios)  │  WebSocket (WS)  │  SSE (EventSource)  │
-└────────────┬─────────────────┬──────────────────┬────────────┘
-             │                 │                  │
-             ▼                 ▼                  ▼
-┌──────────────────────────────────────────────────────────────┐
-│                 Go / Gin HTTP Server (:8080)                  │
-│                                                               │
-│  ┌────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │  Auth      │  │  Listings    │  │  BidHandler (atomic  │  │
-│  │  Handler   │  │  Handler     │  │  tx + row lock)      │  │
-│  └────────────┘  └──────────────┘  └──────────────────────┘  │
-│  ┌────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │  Payment   │  │  Conversation│  │  SSE Stream Hub      │  │
-│  │  Handler   │  │  Handler     │  │  (per-listing fan-   │  │
-│  └────────────┘  └──────────────┘  │   out broadcaster)   │  │
-│                                    └──────────────────────┘  │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │              WebSocket Manager (gorilla/ws)              │  │
-│  │   Per-user notification channels + conversation rooms   │  │
-│  └─────────────────────────────────────────────────────────┘  │
-└────────┬───────────────────────────────────────┬──────────────┘
-         │                                       │
-         ▼                                       ▼
-┌─────────────────┐                   ┌──────────────────────┐
-│   PostgreSQL    │                   │   Redis (Upstash)    │
-│   (Supabase)    │                   │                      │
-│                 │                   │  • Asynq task queue  │
-│  • Users        │                   │  • Rate-limit        │
-│  • Listings     │                   │    counters          │
-│  • Bids         │                   └──────────────────────┘
-│  • ProxyBids    │
-│  • Orders       │                   ┌──────────────────────┐
-│  • Conversations│                   │  Asynq Background    │
-│  • Messages     │                   │  Workers             │
-│  • OTPs         │                   │                      │
-└─────────────────┘                   │  • AuctionWorker     │
-                                      │    (close + notify)  │
-         ┌────────────────────────┐   │  • DeliveryWorker    │
-         │  Cloudinary CDN        │   │    (simulate ship)   │
-         │  Image upload & serve  │   └──────────────────────┘
-         └────────────────────────┘
+<img width="1344" height="941" alt="diagram-export-6-20-2026-1_18_45-PM" src="https://github.com/user-attachments/assets/c52e0041-70d7-49b9-9a0f-e05accdc7066" />
+
 ```
 
 ### Key Design Decisions
