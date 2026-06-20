@@ -112,10 +112,8 @@ BenchmarkBidHandler_FirstBid-12    3056 iterations    438,037 ns/op    43 KB/op 
 
 ## Architecture
 
-```
-<img width="1344" height="941" alt="diagram-export-6-20-2026-1_18_45-PM" src="https://github.com/user-attachments/assets/c52e0041-70d7-49b9-9a0f-e05accdc7066" />
+<img width="1344" height="941" alt="diagram-export-6-20-2026-1_18_45-PM" src="https://github.com/user-attachments/assets/94c51096-17d2-4b8a-bd0e-af2ade30b5a8" />
 
-```
 
 ### Key Design Decisions
 
