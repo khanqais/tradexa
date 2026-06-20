@@ -569,7 +569,7 @@ go test ./handlers/... -run "TestBidHandler" -v
 # Run concurrency tests
 go test ./handlers/... -run "TestConcurrent" -v
 
-# Run with race detector (recommended before deploying)
+# Run with race detector 
 go test ./handlers/... -race -v -timeout 60s
 
 # Run high-throughput bid storm test
@@ -579,16 +579,6 @@ go test ./handlers/... -run "TestHighThroughput" -v
 go test -bench=BenchmarkBidHandler_FirstBid -benchmem ./handlers/...
 ```
 
----
-
-## Deployment
-
-The backend is deployed on **[Render](https://render.com)** as a Go web service.  
-The frontend is served as a static site.
-
-**Live URL:** [https://tradexa-1-zcv6.onrender.com](https://tradexa-1-zcv6.onrender.com)
-
-> ⚠️ The Render free tier spins down after inactivity — the first request may take ~30 seconds to wake up.
 
 ---
 
