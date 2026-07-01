@@ -172,7 +172,7 @@ func GetListingByID(c *gin.Context) {
 			listing.UserMaxBid = &proxy.MaxAmount
 		}
 	}
-
+	
 	c.JSON(http.StatusOK, gin.H{"listing": listing})
 }
 
@@ -211,7 +211,6 @@ func GetListings(c *gin.Context) {
 		limit = 10
 	}
 	offset := (page - 1) * limit
-
 	var total int64
 	if err := query.Model(&models.Listing{}).Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count listings"})

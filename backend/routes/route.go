@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/handlers"
 	"github.com/khanqais/tradexa/middleware"
 )
@@ -14,6 +15,21 @@ func RegisterRoutes(r *gin.Engine) {
 		api.GET("/health", func(ctx *gin.Context) {
 			ctx.JSON(200, gin.H{
 				"status": "Bidding api is working",
+			})
+		})
+
+		api.GET("/keep-alive", func(ctx *gin.Context) {
+			var result int
+			if err := config.DB.Raw("SELECT 1").Scan(&result).Error; err != nil {
+				ctx.JSON(500, gin.H{
+					"status": "Database connection failed",
+					"error":  err.Error(),
+				})
+				return
+			}
+			ctx.JSON(200, gin.H{
+				"status": "Alive and kicking",
+				"db":     "Connected",
 			})
 		})
 
