@@ -28,8 +28,11 @@ func InitAsynq() {
 	AsynqServer = asynq.NewServer(
 		redisOpt,
 		asynq.Config{
-			Concurrency:              10,
-			DelayedTaskCheckInterval: 30 * time.Second,
+			// Only 2 task types — 3 workers is more than enough.
+			Concurrency: 3,
+			// Poll for delayed tasks every 5 min instead of 30 s.
+			// This alone cuts a large chunk of background Redis reads.
+			DelayedTaskCheckInterval: 5 * time.Minute,
 			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
 				log.Printf("[Asynq Error] Task %s failed: %v", task.Type(), err)
 			}),

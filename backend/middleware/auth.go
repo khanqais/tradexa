@@ -36,9 +36,9 @@ func AuthRequired() gin.HandlerFunc {
 			return
 		}
 
+		// --- Cache-first blacklist check (saves 1 Redis read per request) ---
 		blacklistKey := "blacklist:" + tokenString
-		blacklisted, _ := config.RDB.Exists(context.Background(), blacklistKey).Result()
-		if blacklisted > 0 {
+		if isBlacklisted(blacklistKey, tokenString) {
 			log.Println("[ERROR] Token is blacklisted (logged out)")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked, please login again"})
 			c.Abort()
@@ -73,9 +73,44 @@ func AuthRequired() gin.HandlerFunc {
 	}
 }
 
+// isBlacklisted checks the in-memory cache first, falling back to Redis on a miss.
+func isBlacklisted(redisKey, token string) bool {
+	if blacklisted, found := blacklistCache.get(token); found {
+		return blacklisted
+	}
+	// Cache miss — ask Redis.
+	count, err := config.RDB.Exists(context.Background(), redisKey).Result()
+	if err != nil {
+		// On Redis error, fail open (don't block legitimate users).
+		log.Printf("[Auth] Redis blacklist check failed: %v", err)
+		return false
+	}
+	blacklisted := count > 0
+	if blacklisted {
+		// Cache positive results for a long time — blacklisted tokens stay blacklisted.
+		blacklistCache.set(token, true, 24*time.Hour)
+	} else {
+		// Cache negative results briefly — allows logout to propagate within ~60 s.
+		blacklistCache.set(token, false, notBlacklistedTTL)
+	}
+	return blacklisted
+}
+
+// BlacklistToken writes the token to Redis and immediately invalidates any
+// cached "not blacklisted" entry so the logout takes effect right away.
 func BlacklistToken(tokenString string, ttl time.Duration) error {
 	ctx := context.Background()
-	return config.RDB.Set(ctx, "blacklist:"+tokenString, "1", ttl).Err()
+	if err := config.RDB.Set(ctx, "blacklist:"+tokenString, "1", ttl).Err(); err != nil {
+		return err
+	}
+	// Force the cache to reflect the new blacklisted state immediately.
+	blacklistCache.set(tokenString, true, ttl)
+	return nil
+}
+
+// InitMiddleware must be called once at startup to launch the cache janitor.
+func InitMiddleware() {
+	startCacheJanitor(5 * time.Minute)
 }
 
 func OptionalAuth() gin.HandlerFunc {

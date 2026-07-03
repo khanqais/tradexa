@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/hibiken/asynq"
 	"github.com/khanqais/tradexa/config"
+	"github.com/khanqais/tradexa/middleware"
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/routes"
 	"github.com/khanqais/tradexa/tasks"
@@ -28,6 +29,7 @@ func main() {
 	config.RunMigrations(config.DB)
 
 	config.InitAsynq()
+	middleware.InitMiddleware() // start in-memory token cache janitor
 	go startAsynqWorker()
 	r := gin.Default()
 
