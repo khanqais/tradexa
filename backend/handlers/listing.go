@@ -11,10 +11,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hibiken/asynq"
 	"github.com/khanqais/tradexa/config"
 	"github.com/khanqais/tradexa/models"
-	"github.com/khanqais/tradexa/tasks"
 	"github.com/khanqais/tradexa/utils"
 	ws "github.com/khanqais/tradexa/websocket"
 	"gorm.io/gorm"
@@ -114,10 +112,7 @@ func CreateListing(c *gin.Context) {
 	listing.Seller.Password = ""
 
 	if listing.Type == models.ListingTypeAuction && listing.AuctionEndsAt != nil {
-		task, err := tasks.NewAuctionCloseTask(listing.ID)
-		if err == nil {
-			config.AsynqClient.Enqueue(task, asynq.ProcessAt(*listing.AuctionEndsAt))
-		}
+		config.ScheduleAuctionClose(listing.ID, *listing.AuctionEndsAt)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{

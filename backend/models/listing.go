@@ -27,14 +27,15 @@ type Listing struct {
 	Images        []ListingImage `gorm:"foreignKey:ListingID" json:"images"`
 	AuctionEndsAt *time.Time     `gorm:"index:idx_listings_auction_watcher,priority:4" json:"auction_ends_at"`
 	IsSold        bool           `gorm:"default:false;index:idx_listings_is_sold_created,priority:1;index:idx_listings_auction_watcher,priority:2" json:"is_sold"`
-	Status        string         `gorm:"default:active;index:idx_listings_auction_watcher,priority:3" json:"status"`
-	CreatedAt     time.Time      `gorm:"index:idx_listings_is_sold_created,priority:2" json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index:idx_listings_is_sold_created,priority:3" json:"-"`
-	HighestBid    *float64       `gorm:"-" json:"highest_bid,omitempty"`
-	HighestBidder string         `gorm:"-" json:"highest_bidder,omitempty"`
-	UserMaxBid    *float64       `gorm:"-" json:"user_max_bid,omitempty"`
-	Order         *Order         `gorm:"-" json:"order,omitempty"`
+	Status           string         `gorm:"default:active;index:idx_listings_auction_watcher,priority:3" json:"status"`
+	QStashMessageID  string         `gorm:"default:''" json:"-"` // QStash job ID for cancellation (anti-snipe)
+	CreatedAt        time.Time      `gorm:"index:idx_listings_is_sold_created,priority:2" json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index:idx_listings_is_sold_created,priority:3" json:"-"`
+	HighestBid       *float64       `gorm:"-" json:"highest_bid,omitempty"`
+	HighestBidder    string         `gorm:"-" json:"highest_bidder,omitempty"`
+	UserMaxBid       *float64       `gorm:"-" json:"user_max_bid,omitempty"`
+	Order            *Order         `gorm:"-" json:"order,omitempty"`
 }
 
 type ListingImage struct {

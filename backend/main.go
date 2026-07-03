@@ -2,18 +2,16 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/hibiken/asynq"
 	"github.com/khanqais/tradexa/config"
+	"github.com/khanqais/tradexa/handlers"
 	"github.com/khanqais/tradexa/middleware"
 	"github.com/khanqais/tradexa/models"
 	"github.com/khanqais/tradexa/routes"
-	"github.com/khanqais/tradexa/tasks"
 	"github.com/khanqais/tradexa/workers"
 )
 
@@ -22,15 +20,30 @@ func main() {
 	if err != nil {
 		fmt.Println("No .env found")
 	}
+
 	config.ConnectDB()
 	config.ConnectCloudinary()
 	config.ConnectRedis()
-	config.DB.AutoMigrate(&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{}, &models.Message{}, &models.Conversation{}, &models.Bid{}, &models.Order{}, &models.ProxyBid{})
+	config.DB.AutoMigrate(
+		&models.User{}, &models.OTP{}, &models.Listing{}, &models.ListingImage{},
+		&models.Message{}, &models.Conversation{}, &models.Bid{},
+		&models.Order{}, &models.ProxyBid{},
+	)
 	config.RunMigrations(config.DB)
 
-	config.InitAsynq()
-	middleware.InitMiddleware() // start in-memory token cache janitor
-	go startAsynqWorker()
+	// QStash: HTTP-based scheduler — zero Redis polling
+	config.InitQStash()
+	// Wire the dev-mode in-process timer callback (avoids import cycle)
+	config.SetAuctionCloseHandler(workers.TriggerAuctionClose)
+	// Wire the SSE broadcast callback (avoids workers→handlers import cycle)
+	config.SetSSEBroadcaster(handlers.StreamHub.Broadcast)
+
+	// Start token cache janitor
+	middleware.InitMiddleware()
+
+	// Safety net: closes any auctions missed during restarts (runs every 5 min)
+	go workers.StartAuctionSweeper()
+
 	r := gin.Default()
 
 	devOrigins := []string{"http://localhost:3000", "http://127.0.0.1:3000"}
@@ -54,14 +67,4 @@ func main() {
 		port = "8080"
 	}
 	r.Run(":" + port)
-}
-
-func startAsynqWorker() {
-	mux := asynq.NewServeMux()
-	mux.HandleFunc(tasks.TypeAuctionClose, workers.HandleAuctionCloseTask)
-	mux.HandleFunc(tasks.TypeSimulateDelivery, workers.HandleSimulateDeliveryTask)
-
-	if err := config.AsynqServer.Run(mux); err != nil {
-		log.Fatalf("Could not run Asynq server: %v", err)
-	}
 }

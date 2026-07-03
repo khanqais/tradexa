@@ -48,6 +48,9 @@ func RegisterRoutes(r *gin.Engine) {
 
 		api.POST("/payment/webhook", handlers.WebhookPayment)
 
+		// QStash webhook — no auth middleware, signature verified inside handler
+		api.POST("/internal/auction-close", handlers.HandleQStashAuctionClose)
+
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{

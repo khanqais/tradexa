@@ -1,60 +1,47 @@
 package workers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/hibiken/asynq"
 	"github.com/khanqais/tradexa/config"
-	"github.com/khanqais/tradexa/handlers"
 	"github.com/khanqais/tradexa/models"
-	"github.com/khanqais/tradexa/tasks"
 	"github.com/khanqais/tradexa/utils"
 	ws "github.com/khanqais/tradexa/websocket"
 	"gorm.io/gorm"
 )
 
-func HandleAuctionCloseTask(ctx context.Context, t *asynq.Task) error {
-	var payload tasks.AuctionClosePayload
-	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return err
-	}
-
+// TriggerAuctionClose is called by the in-process dev-mode timer.
+// It loads the listing from DB and delegates to ProcessAuctionClose.
+func TriggerAuctionClose(listingID uint) {
 	var listing models.Listing
-	if err := config.DB.First(&listing, payload.ListingID).Error; err != nil {
-		log.Printf("[AuctionWorker] Listing %d not found, dropping task.", payload.ListingID)
-		return nil
+	if err := config.DB.First(&listing, listingID).Error; err != nil {
+		log.Printf("[AuctionWorker] Dev-timer: listing %d not found", listingID)
+		return
 	}
-
-	if listing.IsSold || (listing.Status != "" && listing.Status != "active") {
-		log.Printf("[AuctionWorker] Listing %d already closed, dropping task.", payload.ListingID)
-		return nil
-	}
-
-	// ANTI-SNIPE MAGIC: The Lazy Re-evaluation Pattern
-	if listing.AuctionEndsAt != nil && time.Now().Before(*listing.AuctionEndsAt) {
-		log.Printf("[AuctionWorker] Auction %d was extended! Rescheduling for %v", listing.ID, listing.AuctionEndsAt)
-
-		newTask, _ := tasks.NewAuctionCloseTask(listing.ID)
-
-		_, err := config.AsynqClient.Enqueue(newTask, asynq.ProcessAt(*listing.AuctionEndsAt))
-		if err != nil {
-			log.Printf("[AuctionWorker] Failed to requeue extended auction: %v", err)
-			return err
-		}
-
-		return nil
-	}
-
-	processAuctionClosure(config.DB, listing)
-
-	return nil
+	ProcessAuctionClose(listing)
 }
 
+// ProcessAuctionClose is the public entry point used by the QStash webhook,
+// the DB sweeper, and the dev-mode timer. It delegates to processAuctionClosure
+// using the global config.DB.
+func ProcessAuctionClose(listing models.Listing) {
+	processAuctionClosure(config.DB, listing)
+}
+
+// processAuctionClosure is the internal implementation that accepts an explicit
+// *gorm.DB, keeping unit tests independent of config.DB (tests pass SQLite).
 func processAuctionClosure(db *gorm.DB, listing models.Listing) {
+	// ANTI-SNIPE: if the auction was extended after we were scheduled, reschedule.
+	if listing.AuctionEndsAt != nil && time.Now().Before(*listing.AuctionEndsAt) {
+		log.Printf("[AuctionWorker] Auction %d was extended — rescheduling for %v", listing.ID, listing.AuctionEndsAt)
+		config.CancelAuctionClose(listing.QStashMessageID)
+		config.ScheduleAuctionClose(listing.ID, *listing.AuctionEndsAt)
+		return
+	}
+
 	log.Printf("[AuctionWorker] Processing expired auction: listing_id=%d title=%q", listing.ID, listing.Title)
 
 	var highestBid models.Bid
@@ -122,7 +109,7 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 		"amount":     highestBid.Amount,
 		"order_id":   order.ID,
 	})
-	handlers.StreamHub.Broadcast(listing.ID, ssePayload)
+	config.BroadcastSSE(listing.ID, ssePayload)
 
 	winnerNotif, _ := json.Marshal(map[string]interface{}{
 		"type":       "auction_won",
@@ -199,7 +186,7 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 		"listing_id": listing.ID,
 		"status":     "reserve_not_met",
 	})
-	handlers.StreamHub.Broadcast(listing.ID, ssePayload)
+	config.BroadcastSSE(listing.ID, ssePayload)
 
 	sellerNotif, _ := json.Marshal(map[string]interface{}{
 		"type":       "auction_reserve_not_met",
@@ -208,7 +195,6 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 	})
 	ws.Manager.NotifyUser(listing.SellerID, sellerNotif)
 
-	// WS notify all unique bidders
 	if hasBids {
 		var bidderIDs []uint
 		db.Model(&models.Bid{}).Where("listing_id = ?", listing.ID).
