@@ -37,6 +37,11 @@ func main() {
 	config.SetAuctionCloseHandler(workers.TriggerAuctionClose)
 	// Wire the SSE broadcast callback (avoids workers→handlers import cycle)
 	config.SetSSEBroadcaster(handlers.StreamHub.Broadcast)
+	if backendURL := os.Getenv("BACKEND_URL"); backendURL != "" {
+		fmt.Printf("[QStash] Webhook target: %s/api/internal/auction-close\n", backendURL)
+	} else {
+		fmt.Println("[QStash] WARNING: BACKEND_URL not set — auction scheduling will use in-process timer fallback")
+	}
 
 	// Start token cache janitor
 	middleware.InitMiddleware()

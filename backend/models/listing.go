@@ -28,7 +28,7 @@ type Listing struct {
 	AuctionEndsAt *time.Time     `gorm:"index:idx_listings_auction_watcher,priority:4" json:"auction_ends_at"`
 	IsSold        bool           `gorm:"default:false;index:idx_listings_is_sold_created,priority:1;index:idx_listings_auction_watcher,priority:2" json:"is_sold"`
 	Status           string         `gorm:"default:active;index:idx_listings_auction_watcher,priority:3" json:"status"`
-	QStashMessageID  string         `gorm:"default:''" json:"-"` // QStash job ID for cancellation (anti-snipe)
+	QStashMessageID  string         `gorm:"column:qstash_message_id;default:''" json:"-"` // QStash job ID for cancellation (anti-snipe)
 	CreatedAt        time.Time      `gorm:"index:idx_listings_is_sold_created,priority:2" json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index:idx_listings_is_sold_created,priority:3" json:"-"`

@@ -30,8 +30,13 @@ func HandleQStashAuctionClose(c *gin.Context) {
 
 	// --- Signature verification ---
 	if config.QStashReceiver != nil {
-		sig := c.GetHeader("Upstash-Signature")
 		backendURL := os.Getenv("BACKEND_URL")
+		if backendURL == "" {
+			log.Println("[QStash] ERROR: BACKEND_URL not set but QStashReceiver is configured — cannot verify signature")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "server misconfiguration"})
+			return
+		}
+		sig := c.GetHeader("Upstash-Signature")
 		verifyErr := config.QStashReceiver.Verify(qstash.VerifyOptions{
 			Signature: sig,
 			Body:      string(rawBody),

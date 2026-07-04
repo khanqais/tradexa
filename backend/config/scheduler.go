@@ -25,16 +25,17 @@ func ScheduleAuctionClose(listingID uint, at time.Time) string {
 			Url:       callbackURL,
 			Body:      map[string]any{"listing_id": listingID},
 			NotBefore: fmt.Sprintf("%d", at.Unix()),
+			Retries:   qstash.RetryCount(3),
 		})
 		if err != nil {
 			log.Printf("[Scheduler] QStash publish failed for listing %d: %v — falling back to in-process timer", listingID, err)
 		} else {
 			log.Printf("[Scheduler] QStash job scheduled for listing %d at %v (msgID=%s)", listingID, at, res.MessageId)
-			// Save messageID back to DB so we can cancel it on anti-snipe
-			DB.Model(&map[string]interface{}{}).
-				Table("listings").
-				Where("id = ?", listingID).
-				Update("qstash_message_id", res.MessageId)
+			// Save messageID back to DB so we can cancel it on anti-snipe extension.
+			// Column name matches the gorm:"column:qstash_message_id" tag on models.Listing.
+			if dbErr := DB.Table("listings").Where("id = ?", listingID).Update("qstash_message_id", res.MessageId).Error; dbErr != nil {
+				log.Printf("[Scheduler] Warning: failed to save QStash msgID for listing %d: %v", listingID, dbErr)
+			}
 			return res.MessageId
 		}
 	}
