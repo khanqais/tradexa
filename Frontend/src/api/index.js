@@ -2,11 +2,11 @@ import axios from 'axios';
 
 export const API_BASE = import.meta.env.VITE_BACKEND_URL || '/api';
 
+// Derive WebSocket base from the HTTP API base URL.
+// Replaces http(s):// with ws(s):// and strips any trailing /api path suffix
+// so we get e.g. wss://tradexa-hdhq.onrender.com/api in production.
+const WS_BASE = API_BASE.replace(/^http/, 'ws');
 
-const WS_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_BASE = typeof window !== 'undefined'
-  ? `${WS_PROTOCOL}//${window.location.host}/api`
-  : 'ws://localhost:8080/api';
 
 export const api = axios.create({
   baseURL: API_BASE,

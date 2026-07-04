@@ -52,34 +52,30 @@ func CreateCashfreeOrder(c *gin.Context) {
 	}
 
 	var amount float64
+	var order models.Order
+
 	if listing.Type == models.ListingTypeFixed {
 		amount = listing.Price
-	} else if listing.Type == models.ListingTypeAuction {
-		var highestBid models.Bid
-		if err := config.DB.Where("listing_id = ?", listing.ID).Order("amount DESC").First(&highestBid).Error; err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "No bids found for this auction"})
+		// Fixed listings: create a new order
+		order = models.Order{
+			ListingID: req.ListingID,
+			WinnerID:  userID,
+			SellerID:  listing.SellerID,
+			Amount:    amount,
+			Status:    models.OrderStatusPendingPayment,
+		}
+		if err := config.DB.Create(&order).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
 			return
 		}
-		if highestBid.BidderID != userID {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Only the winning bidder can pay for this auction"})
-			return
-		}
-		amount = highestBid.Amount
 	} else {
-		amount = listing.Price
-	}
-
-	order := models.Order{
-		ListingID: req.ListingID,
-		WinnerID:  userID,
-		SellerID:  listing.SellerID,
-		Amount:    amount,
-		Status:    models.OrderStatusPendingPayment,
-	}
-
-	if err := config.DB.Create(&order).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
-		return
+		// Auction listings: ProcessAuctionClose already created the order — find it.
+		if err := config.DB.Where("listing_id = ? AND winner_id = ? AND status = ?",
+			req.ListingID, userID, models.OrderStatusPendingPayment).First(&order).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No pending order found for this auction. Ensure the auction has ended and you are the winner."})
+			return
+		}
+		amount = order.Amount
 	}
 
 	orderID := fmt.Sprintf("txn_%d_%d", order.ID, time.Now().Unix())
@@ -125,7 +121,8 @@ func CreateCashfreeOrder(c *gin.Context) {
 	json.Unmarshal(resBytes, &resData)
 
 	if response.StatusCode != http.StatusOK {
-		c.JSON(response.StatusCode, gin.H{"error": "Payment gateway error", "details": resData})
+		fmt.Printf("[Payment] Cashfree error %d for order %s: %s\n", response.StatusCode, orderID, string(resBytes))
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Payment gateway error", "details": resData})
 		return
 	}
 
