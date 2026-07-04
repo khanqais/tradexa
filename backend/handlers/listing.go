@@ -40,28 +40,28 @@ func maskName(name string, id uint) string {
 }
 
 type CreateListingInput struct {
-	Title         string     `json:"title" binding:"required,min=3"`
-	Description   string     `json:"description" binding:"required,min=10"`
-	Price         float64    `json:"price" binding:"required,gt=0"`
-	ReservePrice  float64    `json:"reserve_price"`
-	Type          string     `json:"type" binding:"required,oneof=fixed auction"`
-	Category      string     `json:"category" binding:"required"`
-	ImageURLs     []string   `json:"image_urls"`
-	AuctionEndsAt *time.Time `json:"auction_ends_at"`
+	Title		string		`json:"title" binding:"required,min=3"`
+	Description	string		`json:"description" binding:"required,min=10"`
+	Price		float64		`json:"price" binding:"required,gt=0"`
+	ReservePrice	float64		`json:"reserve_price"`
+	Type		string		`json:"type" binding:"required,oneof=fixed auction"`
+	Category	string		`json:"category" binding:"required"`
+	ImageURLs	[]string	`json:"image_urls"`
+	AuctionEndsAt	*time.Time	`json:"auction_ends_at"`
 }
 
 type UpdateListingInput struct {
-	Title        string   `json:"title" binding:"omitempty,min=3"`
-	Description  string   `json:"description" binding:"omitempty,min=10"`
-	Price        float64  `json:"price" binding:"omitempty,gt=0"`
-	ReservePrice float64  `json:"reserve_price"`
-	Category     string   `json:"category"`
-	ImageURLs    []string `json:"image_urls"`
+	Title		string		`json:"title" binding:"omitempty,min=3"`
+	Description	string		`json:"description" binding:"omitempty,min=10"`
+	Price		float64		`json:"price" binding:"omitempty,gt=0"`
+	ReservePrice	float64		`json:"reserve_price"`
+	Category	string		`json:"category"`
+	ImageURLs	[]string	`json:"image_urls"`
 }
 
 type NewBid struct {
-	Amount    uint `json:"amount" binding:"required"`
-	ListingID uint `json:"listing_id" binding:"required"`
+	Amount		uint	`json:"amount" binding:"required"`
+	ListingID	uint	`json:"listing_id" binding:"required"`
 }
 
 func CreateListing(c *gin.Context) {
@@ -84,15 +84,15 @@ func CreateListing(c *gin.Context) {
 	rawID, _ := c.Get("user_id")
 	sellerID := uint(rawID.(float64))
 	listing := models.Listing{
-		Title:         input.Title,
-		Description:   input.Description,
-		Price:         input.Price,
-		ReservePrice:  input.ReservePrice,
-		Type:          models.ListingType(input.Type),
-		Category:      input.Category,
-		ImageURL:      "",
-		SellerID:      sellerID,
-		AuctionEndsAt: input.AuctionEndsAt,
+		Title:		input.Title,
+		Description:	input.Description,
+		Price:		input.Price,
+		ReservePrice:	input.ReservePrice,
+		Type:		models.ListingType(input.Type),
+		Category:	input.Category,
+		ImageURL:	"",
+		SellerID:	sellerID,
+		AuctionEndsAt:	input.AuctionEndsAt,
 	}
 	if err := config.DB.WithContext(c.Request.Context()).Create(&listing).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -102,8 +102,8 @@ func CreateListing(c *gin.Context) {
 	}
 	for _, imageURL := range input.ImageURLs {
 		listingImage := models.ListingImage{
-			ListingID: listing.ID,
-			URL:       imageURL,
+			ListingID:	listing.ID,
+			URL:		imageURL,
 		}
 		config.DB.WithContext(c.Request.Context()).Create(&listingImage)
 	}
@@ -167,7 +167,7 @@ func GetListingByID(c *gin.Context) {
 			listing.UserMaxBid = &proxy.MaxAmount
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"listing": listing})
 }
 
@@ -227,8 +227,8 @@ func GetListings(c *gin.Context) {
 
 	if len(auctionIDs) > 0 {
 		type highestBidResult struct {
-			ListingID uint
-			MaxAmount float64
+			ListingID	uint
+			MaxAmount	float64
 		}
 		var results []highestBidResult
 		config.DB.WithContext(c.Request.Context()).
@@ -250,12 +250,12 @@ func GetListings(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"listings": listings,
+		"listings":	listings,
 		"meta": gin.H{
-			"total": total,
-			"page":  page,
-			"limit": limit,
-			"pages": (int(total) + limit - 1) / limit,
+			"total":	total,
+			"page":		page,
+			"limit":	limit,
+			"pages":	(int(total) + limit - 1) / limit,
 		},
 	})
 }
@@ -304,8 +304,8 @@ func UpdateListing(c *gin.Context) {
 		config.DB.WithContext(c.Request.Context()).Where("listing_id = ?", listing.ID).Delete(&models.ListingImage{})
 		for _, imageURL := range input.ImageURLs {
 			listingImage := models.ListingImage{
-				ListingID: listing.ID,
-				URL:       imageURL,
+				ListingID:	listing.ID,
+				URL:		imageURL,
 			}
 			config.DB.WithContext(c.Request.Context()).Create(&listingImage)
 		}
@@ -453,9 +453,9 @@ func BidHandler(c *gin.Context) {
 		winningBidderID = bidderID
 
 		proxy := models.ProxyBid{
-			ListingID: listing.ID,
-			BidderID:  bidderID,
-			MaxAmount: float64(input.Amount),
+			ListingID:	listing.ID,
+			BidderID:	bidderID,
+			MaxAmount:	float64(input.Amount),
 		}
 		if err := tx.Create(&proxy).Error; err != nil {
 			tx.Rollback()
@@ -464,9 +464,9 @@ func BidHandler(c *gin.Context) {
 		}
 
 		newBid := models.Bid{
-			ListingID: listing.ID,
-			BidderID:  bidderID,
-			Amount:    finalPublicBidAmount,
+			ListingID:	listing.ID,
+			BidderID:	bidderID,
+			Amount:		finalPublicBidAmount,
 		}
 		tx.Create(&newBid)
 
@@ -536,10 +536,10 @@ func BidHandler(c *gin.Context) {
 	config.DB.First(&winner, winningBidderID)
 
 	payload := map[string]interface{}{
-		"type":                "new_bid",
-		"listing_id":          listing.ID,
-		"amount":              finalPublicBidAmount,
-		"winning_bidder_name": maskName(winner.Name, winner.ID),
+		"type":			"new_bid",
+		"listing_id":		listing.ID,
+		"amount":		finalPublicBidAmount,
+		"winning_bidder_name":	maskName(winner.Name, winner.ID),
 	}
 	if listing.AuctionEndsAt != nil {
 		payload["auction_ends_at"] = *listing.AuctionEndsAt
@@ -551,9 +551,9 @@ func BidHandler(c *gin.Context) {
 	StreamHub.Broadcast(listing.ID, messageBytes)
 
 	c.JSON(http.StatusOK, gin.H{
-		"Message":        "bid placed successfully",
-		"current_price":  finalPublicBidAmount,
-		"winning_bidder": winningBidderID,
+		"Message":		"bid placed successfully",
+		"current_price":	finalPublicBidAmount,
+		"winning_bidder":	winningBidderID,
 	})
 }
 
@@ -564,16 +564,14 @@ func sendOutbidNotifications(listing models.Listing, outbidUserID uint, newPrice
 		return
 	}
 
-	// 1. WebSocket Notification
 	notifPayload, _ := json.Marshal(map[string]interface{}{
-		"type":       "outbid",
-		"listing_id": listing.ID,
-		"title":      listing.Title,
-		"new_price":  newPrice,
+		"type":		"outbid",
+		"listing_id":	listing.ID,
+		"title":	listing.Title,
+		"new_price":	newPrice,
 	})
 	ws.Manager.NotifyUser(outbidUserID, notifPayload)
 
-	// 2. Email Notification
 	subject := fmt.Sprintf("⚠️ You have been outbid on \"%s\"!", listing.Title)
 	body := fmt.Sprintf(`
 	<div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px;">

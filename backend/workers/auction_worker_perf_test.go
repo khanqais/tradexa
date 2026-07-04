@@ -43,10 +43,10 @@ func workerSetupDB(t testing.TB) *gorm.DB {
 
 func workerSeedSeller(db *gorm.DB, idx int) uint {
 	u := models.User{
-		Name:     fmt.Sprintf("Seller%d", idx),
-		Email:    fmt.Sprintf("wseller%d@tradexa.io", idx),
-		Password: "x",
-		Role:     models.RoleSeller,
+		Name:		fmt.Sprintf("Seller%d", idx),
+		Email:		fmt.Sprintf("wseller%d@tradexa.io", idx),
+		Password:	"x",
+		Role:		models.RoleSeller,
 	}
 	db.Create(&u)
 	return u.ID
@@ -54,10 +54,10 @@ func workerSeedSeller(db *gorm.DB, idx int) uint {
 
 func workerSeedBuyer(db *gorm.DB, idx int) uint {
 	u := models.User{
-		Name:     fmt.Sprintf("Buyer%d", idx),
-		Email:    fmt.Sprintf("wbuyer%d@tradexa.io", idx),
-		Password: "x",
-		Role:     models.RoleBuyer,
+		Name:		fmt.Sprintf("Buyer%d", idx),
+		Email:		fmt.Sprintf("wbuyer%d@tradexa.io", idx),
+		Password:	"x",
+		Role:		models.RoleBuyer,
 	}
 	db.Create(&u)
 	return u.ID
@@ -65,13 +65,13 @@ func workerSeedBuyer(db *gorm.DB, idx int) uint {
 
 func workerSeedAuction(db *gorm.DB, sellerID uint, price float64) models.Listing {
 	l := models.Listing{
-		Title:       "Test Item",
-		Description: "Worker test auction item",
-		Price:       price,
-		Type:        models.ListingTypeAuction,
-		Category:    "test",
-		SellerID:    sellerID,
-		Status:      "active",
+		Title:		"Test Item",
+		Description:	"Worker test auction item",
+		Price:		price,
+		Type:		models.ListingTypeAuction,
+		Category:	"test",
+		SellerID:	sellerID,
+		Status:		"active",
 	}
 	db.Create(&l)
 	return l

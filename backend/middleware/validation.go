@@ -7,8 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ValidateParamInt creates a middleware that validates whether a given URL path parameter
-// is a valid unsigned integer. It helps prevent issues with invalid IDs being passed to queries.
 func ValidateParamInt(paramName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		val := c.Param(paramName)

@@ -29,8 +29,8 @@ func RateLimit(prefix string, keyFn func(c *gin.Context) string, max int, window
 			ttl, _ := config.RDB.TTL(ctx, key).Result()
 			c.Header("Retry-After", fmt.Sprintf("%.0f", ttl.Seconds()))
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":       "too many requests",
-				"retry_after": fmt.Sprintf("%.0f seconds", ttl.Seconds()),
+				"error":	"too many requests",
+				"retry_after":	fmt.Sprintf("%.0f seconds", ttl.Seconds()),
 			})
 			c.Abort()
 			return

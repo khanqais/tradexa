@@ -44,8 +44,8 @@ func UploadImage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"url":       uploadResult.SecureURL,
-		"public_id": uploadResult.PublicID,
+		"url":		uploadResult.SecureURL,
+		"public_id":	uploadResult.PublicID,
 	})
 
 }

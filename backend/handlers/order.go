@@ -34,7 +34,6 @@ func MarkOrderShipped(c *gin.Context) {
 	order.Status = models.OrderStatusShipped
 	config.DB.Save(&order)
 
-	// Schedule mock delivery in 2 minutes — no Asynq, just a simple goroutine timer
 	go func(orderID uint) {
 		time.Sleep(2 * time.Minute)
 		workers.SimulateDelivery(orderID)

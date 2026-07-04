@@ -3,14 +3,14 @@ package websocket
 import "sync"
 
 type HubManager struct {
-	conversationHubs map[string]*Hub
-	userClients      map[uint]map[*Client]bool
-	mu               sync.Mutex
+	conversationHubs	map[string]*Hub
+	userClients		map[uint]map[*Client]bool
+	mu			sync.Mutex
 }
 
 var Manager = &HubManager{
-	conversationHubs: make(map[string]*Hub),
-	userClients:      make(map[uint]map[*Client]bool),
+	conversationHubs:	make(map[string]*Hub),
+	userClients:		make(map[uint]map[*Client]bool),
 }
 
 func (m *HubManager) GetOrCreateConversation(conversationID string) *Hub {

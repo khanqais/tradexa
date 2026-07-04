@@ -32,10 +32,10 @@ func NotificationHandler(c *gin.Context) {
 	log.Println("[DEBUG] WebSocket upgraded successfully")
 
 	client := &ws.Client{
-		Hub:    nil,
-		Conn:   conn,
-		Send:   make(chan []byte, 256),
-		UserID: userID,
+		Hub:	nil,
+		Conn:	conn,
+		Send:	make(chan []byte, 256),
+		UserID:	userID,
 	}
 
 	ws.Manager.RegisterClient(userID, client)

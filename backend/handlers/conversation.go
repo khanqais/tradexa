@@ -12,8 +12,8 @@ import (
 
 func GetOrCreateConversation(c *gin.Context) {
 	var input struct {
-		ListingID uint `json:"listing_id" binding:"required"`
-		BuyerID   uint `json:"buyer_id" binding:"required"`
+		ListingID	uint	`json:"listing_id" binding:"required"`
+		BuyerID		uint	`json:"buyer_id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -41,9 +41,9 @@ func GetOrCreateConversation(c *gin.Context) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 
 			conversation = models.Conversation{
-				ListingID: input.ListingID,
-				BuyerID:   input.BuyerID,
-				SellerID:  sellerID,
+				ListingID:	input.ListingID,
+				BuyerID:	input.BuyerID,
+				SellerID:	sellerID,
 			}
 			if err := config.DB.Create(&conversation).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create conversation"})
@@ -101,7 +101,7 @@ func GetMessagesForConversation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"conversation_id": conversationID,
-		"messages":        messages,
+		"conversation_id":	conversationID,
+		"messages":		messages,
 	})
 }

@@ -59,10 +59,10 @@ func replaceGlobalDB(db *gorm.DB) func() {
 
 func seedSeller(db *gorm.DB, idx int) uint {
 	u := models.User{
-		Name:     fmt.Sprintf("Seller%d", idx),
-		Email:    fmt.Sprintf("seller%d@tradexa.io", idx),
-		Password: "hashed",
-		Role:     models.RoleSeller,
+		Name:		fmt.Sprintf("Seller%d", idx),
+		Email:		fmt.Sprintf("seller%d@tradexa.io", idx),
+		Password:	"hashed",
+		Role:		models.RoleSeller,
 	}
 	db.Create(&u)
 	return u.ID
@@ -70,10 +70,10 @@ func seedSeller(db *gorm.DB, idx int) uint {
 
 func seedBuyer(db *gorm.DB, idx int) uint {
 	u := models.User{
-		Name:     fmt.Sprintf("Buyer%d", idx),
-		Email:    fmt.Sprintf("buyer%d@tradexa.io", idx),
-		Password: "hashed",
-		Role:     models.RoleBuyer,
+		Name:		fmt.Sprintf("Buyer%d", idx),
+		Email:		fmt.Sprintf("buyer%d@tradexa.io", idx),
+		Password:	"hashed",
+		Role:		models.RoleBuyer,
 	}
 	db.Create(&u)
 	return u.ID
@@ -82,14 +82,14 @@ func seedBuyer(db *gorm.DB, idx int) uint {
 func seedAuction(db *gorm.DB, sellerID uint, startPrice float64) models.Listing {
 	ends := time.Now().Add(24 * time.Hour)
 	l := models.Listing{
-		Title:         "Vintage Watch",
-		Description:   "An authentic vintage timepiece",
-		Price:         startPrice,
-		Type:          models.ListingTypeAuction,
-		Category:      "collectibles",
-		SellerID:      sellerID,
-		AuctionEndsAt: &ends,
-		Status:        "active",
+		Title:		"Vintage Watch",
+		Description:	"An authentic vintage timepiece",
+		Price:		startPrice,
+		Type:		models.ListingTypeAuction,
+		Category:	"collectibles",
+		SellerID:	sellerID,
+		AuctionEndsAt:	&ends,
+		Status:		"active",
 	}
 	db.Create(&l)
 	return l
@@ -199,8 +199,8 @@ func TestBidHandler_ProxyWar_NewBidderWins(t *testing.T) {
 	defer replaceGlobalDB(db)()
 
 	sellerID := seedSeller(db, 1)
-	buyer1 := seedBuyer(db, 1) // proxy at 200
-	buyer2 := seedBuyer(db, 2) // challenger at 300 → wins
+	buyer1 := seedBuyer(db, 1)
+	buyer2 := seedBuyer(db, 2)
 	listing := seedAuction(db, sellerID, 100)
 
 	c1, _ := bidRequest(buyer1, handlers.NewBid{Amount: 200, ListingID: listing.ID})
@@ -226,8 +226,8 @@ func TestBidHandler_ProxyWar_ExistingProxyDefends(t *testing.T) {
 	defer replaceGlobalDB(db)()
 
 	sellerID := seedSeller(db, 1)
-	buyer1 := seedBuyer(db, 1) // proxy at 300
-	buyer2 := seedBuyer(db, 2) // challenger at 200 → loses
+	buyer1 := seedBuyer(db, 1)
+	buyer2 := seedBuyer(db, 2)
 	listing := seedAuction(db, sellerID, 100)
 
 	c1, _ := bidRequest(buyer1, handlers.NewBid{Amount: 300, ListingID: listing.ID})
@@ -299,13 +299,13 @@ func TestBidHandler_ExpiredAuction_Rejected(t *testing.T) {
 
 	past := time.Now().Add(-1 * time.Hour)
 	listing := models.Listing{
-		Title:         "Expired Item",
-		Description:   "This auction already ended",
-		Price:         50,
-		Type:          models.ListingTypeAuction,
-		SellerID:      sellerID,
-		AuctionEndsAt: &past,
-		Status:        "active",
+		Title:		"Expired Item",
+		Description:	"This auction already ended",
+		Price:		50,
+		Type:		models.ListingTypeAuction,
+		SellerID:	sellerID,
+		AuctionEndsAt:	&past,
+		Status:		"active",
 	}
 	db.Create(&listing)
 
@@ -381,13 +381,13 @@ func TestConcurrentBids_MultipleAuctions(t *testing.T) {
 	const biddersEach = 4
 
 	type auctionResult struct {
-		listingID  uint
-		proxyCount int64
+		listingID	uint
+		proxyCount	int64
 	}
 
 	type auctionSetup struct {
-		listing models.Listing
-		bidders []uint
+		listing	models.Listing
+		bidders	[]uint
 	}
 	setups := make([]auctionSetup, numAuctions)
 	for a := 0; a < numAuctions; a++ {
@@ -486,8 +486,8 @@ func BenchmarkBidHandler_Parallel(b *testing.B) {
 		for pb.Next() {
 			i := int(atomic.AddInt64(&idx, 1)) % pool
 			c, _ := bidRequest(buyers[i], handlers.NewBid{
-				Amount:    uint(100 + i),
-				ListingID: listings[i].ID,
+				Amount:		uint(100 + i),
+				ListingID:	listings[i].ID,
 			})
 			handlers.BidHandler(c)
 		}

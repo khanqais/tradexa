@@ -34,8 +34,8 @@ func ConnectDB() {
 
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger:      logger.Default.LogMode(logger.Info),
-		PrepareStmt: false,
+		Logger:		logger.Default.LogMode(logger.Info),
+		PrepareStmt:	false,
 	})
 	if err != nil {
 		log.Fatal("failed to connect to DB")

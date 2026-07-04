@@ -32,11 +32,11 @@ func ConversationHandler(c *gin.Context) {
 	hub := ws.Manager.GetOrCreateConversation(conversationID)
 
 	client := &ws.Client{
-		Hub:    hub,
-		Conn:   conn,
-		Send:   make(chan []byte, 256),
-		UserID: userID,
-		Name:   userName,
+		Hub:	hub,
+		Conn:	conn,
+		Send:	make(chan []byte, 256),
+		UserID:	userID,
+		Name:	userName,
 	}
 
 	hub.Register <- client

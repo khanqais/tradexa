@@ -31,11 +31,10 @@ func main() {
 	)
 	config.RunMigrations(config.DB)
 
-	// QStash: HTTP-based scheduler — zero Redis polling
 	config.InitQStash()
-	// Wire the dev-mode in-process timer callback (avoids import cycle)
+
 	config.SetAuctionCloseHandler(workers.TriggerAuctionClose)
-	// Wire the SSE broadcast callback (avoids workers→handlers import cycle)
+
 	config.SetSSEBroadcaster(handlers.StreamHub.Broadcast)
 	if backendURL := os.Getenv("BACKEND_URL"); backendURL != "" {
 		fmt.Printf("[QStash] Webhook target: %s/api/internal/auction-close\n", backendURL)
@@ -43,10 +42,8 @@ func main() {
 		fmt.Println("[QStash] WARNING: BACKEND_URL not set — auction scheduling will use in-process timer fallback")
 	}
 
-	// Start token cache janitor
 	middleware.InitMiddleware()
 
-	// Safety net: closes any auctions missed during restarts (runs every 5 min)
 	go workers.StartAuctionSweeper()
 
 	r := gin.Default()
@@ -58,12 +55,12 @@ func main() {
 	}
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     devOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           3600,
+		AllowOrigins:		devOrigins,
+		AllowMethods:		[]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:		[]string{"Content-Type", "Authorization", "X-Requested-With"},
+		ExposeHeaders:		[]string{"Content-Length"},
+		AllowCredentials:	true,
+		MaxAge:			3600,
 	}))
 
 	routes.RegisterRoutes(r)

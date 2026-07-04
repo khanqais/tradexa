@@ -13,8 +13,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TriggerAuctionClose is called by the in-process dev-mode timer.
-// It loads the listing from DB and delegates to ProcessAuctionClose.
 func TriggerAuctionClose(listingID uint) {
 	var listing models.Listing
 	if err := config.DB.First(&listing, listingID).Error; err != nil {
@@ -24,17 +22,12 @@ func TriggerAuctionClose(listingID uint) {
 	ProcessAuctionClose(listing)
 }
 
-// ProcessAuctionClose is the public entry point used by the QStash webhook,
-// the DB sweeper, and the dev-mode timer. It delegates to processAuctionClosure
-// using the global config.DB.
 func ProcessAuctionClose(listing models.Listing) {
 	processAuctionClosure(config.DB, listing)
 }
 
-// processAuctionClosure is the internal implementation that accepts an explicit
-// *gorm.DB, keeping unit tests independent of config.DB (tests pass SQLite).
 func processAuctionClosure(db *gorm.DB, listing models.Listing) {
-	// ANTI-SNIPE: if the auction was extended after we were scheduled, reschedule.
+
 	if listing.AuctionEndsAt != nil && time.Now().Before(*listing.AuctionEndsAt) {
 		log.Printf("[AuctionWorker] Auction %d was extended — rescheduling for %v", listing.ID, listing.AuctionEndsAt)
 		config.CancelAuctionClose(listing.QStashMessageID)
@@ -68,8 +61,8 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 	tx := db.Begin()
 
 	if err := tx.Model(&listing).Updates(map[string]interface{}{
-		"is_sold": true,
-		"status":  "sold",
+		"is_sold":	true,
+		"status":	"sold",
 	}).Error; err != nil {
 		tx.Rollback()
 		log.Printf("[AuctionWorker] Error marking listing %d as sold: %v", listing.ID, err)
@@ -77,11 +70,11 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 	}
 
 	order := models.Order{
-		ListingID: listing.ID,
-		WinnerID:  highestBid.BidderID,
-		SellerID:  listing.SellerID,
-		Amount:    highestBid.Amount,
-		Status:    models.OrderStatusPendingPayment,
+		ListingID:	listing.ID,
+		WinnerID:	highestBid.BidderID,
+		SellerID:	listing.SellerID,
+		Amount:		highestBid.Amount,
+		Status:		models.OrderStatusPendingPayment,
 	}
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
@@ -102,30 +95,30 @@ func handleAuctionSold(db *gorm.DB, listing models.Listing, highestBid models.Bi
 	db.First(&seller, listing.SellerID)
 
 	ssePayload, _ := json.Marshal(map[string]interface{}{
-		"type":       "auction_closed",
-		"listing_id": listing.ID,
-		"status":     "sold",
-		"winner_id":  highestBid.BidderID,
-		"amount":     highestBid.Amount,
-		"order_id":   order.ID,
+		"type":		"auction_closed",
+		"listing_id":	listing.ID,
+		"status":	"sold",
+		"winner_id":	highestBid.BidderID,
+		"amount":	highestBid.Amount,
+		"order_id":	order.ID,
 	})
 	config.BroadcastSSE(listing.ID, ssePayload)
 
 	winnerNotif, _ := json.Marshal(map[string]interface{}{
-		"type":       "auction_won",
-		"listing_id": listing.ID,
-		"title":      listing.Title,
-		"amount":     highestBid.Amount,
-		"order_id":   order.ID,
+		"type":		"auction_won",
+		"listing_id":	listing.ID,
+		"title":	listing.Title,
+		"amount":	highestBid.Amount,
+		"order_id":	order.ID,
 	})
 	ws.Manager.NotifyUser(highestBid.BidderID, winnerNotif)
 
 	sellerNotif, _ := json.Marshal(map[string]interface{}{
-		"type":       "auction_sold",
-		"listing_id": listing.ID,
-		"title":      listing.Title,
-		"amount":     highestBid.Amount,
-		"buyer_name": winner.Name,
+		"type":		"auction_sold",
+		"listing_id":	listing.ID,
+		"title":	listing.Title,
+		"amount":	highestBid.Amount,
+		"buyer_name":	winner.Name,
 	})
 	ws.Manager.NotifyUser(listing.SellerID, sellerNotif)
 
@@ -182,16 +175,16 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 	db.First(&seller, listing.SellerID)
 
 	ssePayload, _ := json.Marshal(map[string]interface{}{
-		"type":       "auction_closed",
-		"listing_id": listing.ID,
-		"status":     "reserve_not_met",
+		"type":		"auction_closed",
+		"listing_id":	listing.ID,
+		"status":	"reserve_not_met",
 	})
 	config.BroadcastSSE(listing.ID, ssePayload)
 
 	sellerNotif, _ := json.Marshal(map[string]interface{}{
-		"type":       "auction_reserve_not_met",
-		"listing_id": listing.ID,
-		"title":      listing.Title,
+		"type":		"auction_reserve_not_met",
+		"listing_id":	listing.ID,
+		"title":	listing.Title,
 	})
 	ws.Manager.NotifyUser(listing.SellerID, sellerNotif)
 
@@ -201,9 +194,9 @@ func handleReserveNotMet(db *gorm.DB, listing models.Listing, hasBids bool) {
 			Distinct("bidder_id").Pluck("bidder_id", &bidderIDs)
 
 		bidderNotif, _ := json.Marshal(map[string]interface{}{
-			"type":       "auction_reserve_not_met",
-			"listing_id": listing.ID,
-			"title":      listing.Title,
+			"type":		"auction_reserve_not_met",
+			"listing_id":	listing.ID,
+			"title":	listing.Title,
 		})
 		for _, bidderID := range bidderIDs {
 			ws.Manager.NotifyUser(bidderID, bidderNotif)

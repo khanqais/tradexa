@@ -6,7 +6,7 @@ import (
 
 type AuctionHub struct {
 	sync.RWMutex
-	ListingClient map[uint]map[chan []byte]struct{}
+	ListingClient	map[uint]map[chan []byte]struct{}
 }
 
 var StreamHub = &AuctionHub{
@@ -41,7 +41,7 @@ func (h *AuctionHub) Broadcast(listingID uint, message []byte) {
 			select {
 			case clientChan <- message:
 			default:
-				//imp:: If the pipe is blocked skip them so the server doesn't freeze
+
 			}
 		}
 	}

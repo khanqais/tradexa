@@ -6,14 +6,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// RunMigrations creates database indexes that GORM AutoMigrate may skip.
-// All statements use IF NOT EXISTS so they are safe to run repeatedly.
 func RunMigrations(db *gorm.DB) {
 	indexes := []struct {
-		name string
-		sql  string
+		name	string
+		sql	string
 	}{
-		// ── listings ──────────────────────────────────────────────
+
 		{
 			"idx_listings_is_sold_created",
 			`CREATE INDEX IF NOT EXISTS idx_listings_is_sold_created
@@ -36,14 +34,12 @@ func RunMigrations(db *gorm.DB) {
 			 ON listings (seller_id)`,
 		},
 
-		// ── listing_images ────────────────────────────────────────
 		{
 			"idx_listing_images_listing_id",
 			`CREATE INDEX IF NOT EXISTS idx_listing_images_listing_id
 			 ON listing_images (listing_id)`,
 		},
 
-		// ── bids ──────────────────────────────────────────────────
 		{
 			"idx_bids_listing_amount",
 			`CREATE INDEX IF NOT EXISTS idx_bids_listing_amount

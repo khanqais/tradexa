@@ -22,14 +22,14 @@ func RegisterRoutes(r *gin.Engine) {
 			var result int
 			if err := config.DB.Raw("SELECT 1").Scan(&result).Error; err != nil {
 				ctx.JSON(500, gin.H{
-					"status": "Database connection failed",
-					"error":  err.Error(),
+					"status":	"Database connection failed",
+					"error":	err.Error(),
 				})
 				return
 			}
 			ctx.JSON(200, gin.H{
-				"status": "Alive and kicking",
-				"db":     "Connected",
+				"status":	"Alive and kicking",
+				"db":		"Connected",
 			})
 		})
 
@@ -48,7 +48,6 @@ func RegisterRoutes(r *gin.Engine) {
 
 		api.POST("/payment/webhook", handlers.WebhookPayment)
 
-		// QStash webhook — no auth middleware, signature verified inside handler
 		api.POST("/internal/auction-close", handlers.HandleQStashAuctionClose)
 
 		protected := api.Group("/")

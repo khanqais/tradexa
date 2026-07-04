@@ -21,8 +21,8 @@ import (
 )
 
 type CreatePaymentRequest struct {
-	Amount    float64 `json:"amount"` // Ignored by server, calculated server-side
-	ListingID uint    `json:"listing_id" binding:"required"`
+	Amount		float64	`json:"amount"`
+	ListingID	uint	`json:"listing_id" binding:"required"`
 }
 
 func CreateCashfreeOrder(c *gin.Context) {
@@ -56,20 +56,20 @@ func CreateCashfreeOrder(c *gin.Context) {
 
 	if listing.Type == models.ListingTypeFixed {
 		amount = listing.Price
-		// Fixed listings: create a new order
+
 		order = models.Order{
-			ListingID: req.ListingID,
-			WinnerID:  userID,
-			SellerID:  listing.SellerID,
-			Amount:    amount,
-			Status:    models.OrderStatusPendingPayment,
+			ListingID:	req.ListingID,
+			WinnerID:	userID,
+			SellerID:	listing.SellerID,
+			Amount:		amount,
+			Status:		models.OrderStatusPendingPayment,
 		}
 		if err := config.DB.Create(&order).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
 			return
 		}
 	} else {
-		// Auction listings: ProcessAuctionClose already created the order — find it.
+
 		if err := config.DB.Where("listing_id = ? AND winner_id = ? AND status = ?",
 			req.ListingID, userID, models.OrderStatusPendingPayment).First(&order).Error; err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "No pending order found for this auction. Ensure the auction has ended and you are the winner."})
@@ -81,13 +81,13 @@ func CreateCashfreeOrder(c *gin.Context) {
 	orderID := fmt.Sprintf("txn_%d_%d", order.ID, time.Now().Unix())
 
 	payload := map[string]interface{}{
-		"order_amount":   amount,
-		"order_currency": "INR",
-		"order_id":       orderID,
+		"order_amount":		amount,
+		"order_currency":	"INR",
+		"order_id":		orderID,
 		"customer_details": map[string]string{
-			"customer_id":    fmt.Sprintf("user_%d", userID),
-			"customer_phone": phone,
-			"customer_email": fmt.Sprintf("%v", email),
+			"customer_id":		fmt.Sprintf("user_%d", userID),
+			"customer_phone":	phone,
+			"customer_email":	fmt.Sprintf("%v", email),
 		},
 		"order_meta": map[string]string{
 			"return_url": os.Getenv("FRONTEND_URL") + "/payment-status?order_id={order_id}",
@@ -127,8 +127,8 @@ func CreateCashfreeOrder(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"payment_session_id": resData["payment_session_id"],
-		"order_id":           orderID,
+		"payment_session_id":	resData["payment_session_id"],
+		"order_id":		orderID,
 	})
 }
 
@@ -203,7 +203,7 @@ func VerifyPayment(c *gin.Context) {
 }
 
 func WebhookPayment(c *gin.Context) {
-	// Cashfree webhook signature verification
+
 	appSecret := os.Getenv("CASHFREE_SECRET_KEY")
 	if appSecret == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cashfree secret key not configured"})
@@ -223,7 +223,6 @@ func WebhookPayment(c *gin.Context) {
 		return
 	}
 
-	// Calculate signature: Base64(HMAC_SHA256(timestamp + rawBody, secretKey))
 	mac := hmac.New(sha256.New, []byte(appSecret))
 	mac.Write([]byte(timestamp))
 	mac.Write(bodyBytes)
@@ -256,7 +255,7 @@ func WebhookPayment(c *gin.Context) {
 		c.Status(http.StatusOK)
 		return
 	}
-	
+
 	status, _ := payload["type"].(string)
 
 	parts := strings.Split(orderID, "_")

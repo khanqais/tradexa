@@ -23,7 +23,7 @@ func GetChatHistory(c *gin.Context) {
 		message[i].Sender.Password = ""
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"listing_id": listingID,
-		"message":    message,
+		"listing_id":	listingID,
+		"message":	message,
 	})
 }

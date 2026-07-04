@@ -28,28 +28,25 @@ import (
 )
 
 type RegisterInput struct {
-	Name     string `json:"name" binding:"required,min=2"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
-	Role     string `json:"role" binding:"omitempty,oneof=buyer seller admin"`
-	Otp      string `json:"otp" binding:"required"`
+	Name		string	`json:"name" binding:"required,min=2"`
+	Email		string	`json:"email" binding:"required,email"`
+	Password	string	`json:"password" binding:"required,min=6"`
+	Role		string	`json:"role" binding:"omitempty,oneof=buyer seller admin"`
+	Otp		string	`json:"otp" binding:"required"`
 }
 
 type SendOTPInput struct {
 	Email string `json:"email" binding:"required,email"`
 }
 
-// So this is the structure of the login and register and json means what type of variable we are accepting if not specified
-//then We have to send "Email" and binding set the validation rule like min ,max required , omitempty
-
 type LoginInput struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+	Email		string	`json:"email" binding:"required,email"`
+	Password	string	`json:"password" binding:"required,min=6"`
 }
 
 type ChangePassowrdInput struct {
-	NewPassword string `json:"newpassowrd" binding:"required,min=6"`
-	OldPassWord string `json:"oldpassowrd" binding:"required,min=6"`
+	NewPassword	string	`json:"newpassowrd" binding:"required,min=6"`
+	OldPassWord	string	`json:"oldpassowrd" binding:"required,min=6"`
 }
 
 func Register(c *gin.Context) {
@@ -73,7 +70,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// Verify OTP from Redis
 	otpKey := "otp:" + normalizedEmail
 	storedOTP, otpErr := config.RDB.Get(context.Background(), otpKey).Result()
 	if otpErr != nil {
@@ -95,13 +91,12 @@ func Register(c *gin.Context) {
 		role = models.Role(input.Role)
 	}
 	user := models.User{
-		Name:     input.Name,
-		Email:    normalizedEmail,
-		Password: string(hashpassword),
-		Role:     role,
+		Name:		input.Name,
+		Email:		normalizedEmail,
+		Password:	string(hashpassword),
+		Role:		role,
 	}
 
-	// Create user in DB
 	if err := config.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "failed to create user",
@@ -109,7 +104,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// Delete OTP from Redis — it has been consumed
 	config.RDB.Del(context.Background(), otpKey)
 
 	user.Password = ""
@@ -127,7 +121,6 @@ func SendOTP(c *gin.Context) {
 
 	normalizedEmail := strings.TrimSpace(strings.ToLower(input.Email))
 
-	// Check if user already exists
 	var existing models.User
 	err := config.DB.Where("LOWER(email) = ?", normalizedEmail).First(&existing).Error
 	if err == nil {
@@ -139,7 +132,6 @@ func SendOTP(c *gin.Context) {
 		return
 	}
 
-	// Generate 6-digit OTP
 	b := make([]byte, 6)
 	if _, err := rand.Read(b); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate OTP"})
@@ -150,7 +142,6 @@ func SendOTP(c *gin.Context) {
 		otpCode += fmt.Sprintf("%d", b[i]%10)
 	}
 
-	// Store OTP in Redis with 10-minute TTL (replaces DB write)
 	otpKey := "otp:" + normalizedEmail
 	if err := config.RDB.Set(context.Background(), otpKey, otpCode, 10*time.Minute).Err(); err != nil {
 		log.Printf("failed to store OTP in Redis: %v", err)
@@ -158,7 +149,6 @@ func SendOTP(c *gin.Context) {
 		return
 	}
 
-	// Send OTP email
 	subject := "Verify your email - Tradexa"
 	htmlBody := fmt.Sprintf(`
 		<div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px;">
@@ -206,12 +196,12 @@ func Login(c *gin.Context) {
 		return
 	}
 	claims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"role":    string(user.Role),
-		"name":    user.Name,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-		"iat":     time.Now().Unix(),
+		"user_id":	user.ID,
+		"email":	user.Email,
+		"role":		string(user.Role),
+		"name":		user.Name,
+		"exp":		time.Now().Add(24 * time.Hour).Unix(),
+		"iat":		time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secret))
@@ -223,13 +213,13 @@ func Login(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"token": tokenString,
+		"token":	tokenString,
 		"user": gin.H{
-			"id":      user.ID,
-			"name":    user.Name,
-			"email":   user.Email,
-			"role":    user.Role,
-			"picture": user.Avatar,
+			"id":		user.ID,
+			"name":		user.Name,
+			"email":	user.Email,
+			"role":		user.Role,
+			"picture":	user.Avatar,
 		},
 	})
 
@@ -259,8 +249,8 @@ func UploadAvatar(c *gin.Context) {
 		context.Background(),
 		file,
 		uploader.UploadParams{
-			Folder:         "tradexa/avatars",
-			Transformation: "c_fill,w_200,h_200,q_auto,f_auto",
+			Folder:		"tradexa/avatars",
+			Transformation:	"c_fill,w_200,h_200,q_auto,f_auto",
 		},
 	)
 	if err != nil {
@@ -318,9 +308,9 @@ func GetMe(c *gin.Context) {
 	email, _ := c.Get("email")
 	role, _ := c.Get("role")
 	c.JSON(http.StatusOK, gin.H{
-		"user_id": userID,
-		"email":   email,
-		"role":    role,
+		"user_id":	userID,
+		"email":	email,
+		"role":		role,
 	})
 }
 
@@ -357,17 +347,17 @@ func GoogleLogin(c *gin.Context) {
 	err = config.DB.Where("LOWER(email) = ?", normalizedEmail).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Create user
+
 			b := make([]byte, 16)
 			rand.Read(b)
 			randomPassword := hex.EncodeToString(b)
 			hashpassword, _ := bcrypt.GenerateFromPassword([]byte(randomPassword), bcrypt.DefaultCost)
 
 			user = models.User{
-				Name:     name,
-				Email:    normalizedEmail,
-				Password: string(hashpassword),
-				Role:     models.RoleBuyer,
+				Name:		name,
+				Email:		normalizedEmail,
+				Password:	string(hashpassword),
+				Role:		models.RoleBuyer,
 			}
 			if err := config.DB.Create(&user).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
@@ -386,12 +376,12 @@ func GoogleLogin(c *gin.Context) {
 	}
 
 	claims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"role":    string(user.Role),
-		"name":    user.Name,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-		"iat":     time.Now().Unix(),
+		"user_id":	user.ID,
+		"email":	user.Email,
+		"role":		string(user.Role),
+		"name":		user.Name,
+		"exp":		time.Now().Add(24 * time.Hour).Unix(),
+		"iat":		time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secret))
@@ -401,18 +391,17 @@ func GoogleLogin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"token": tokenString,
+		"token":	tokenString,
 		"user": gin.H{
-			"id":      user.ID,
-			"name":    user.Name,
-			"email":   user.Email,
-			"role":    user.Role,
-			"picture": picture,
+			"id":		user.ID,
+			"name":		user.Name,
+			"email":	user.Email,
+			"role":		user.Role,
+			"picture":	picture,
 		},
 	})
 }
 
-// Logout blacklists the current JWT token in Redis so it cannot be reused.
 func Logout(c *gin.Context) {
 	rawToken, exists := c.Get("raw_token")
 	if !exists {
@@ -425,13 +414,12 @@ func Logout(c *gin.Context) {
 		return
 	}
 
-	// Parse to get remaining TTL so the blacklist key auto-expires
 	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
 
-	ttl := 24 * time.Hour // default fallback
+	ttl := 24 * time.Hour
 	if err == nil && token.Valid {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			if exp, ok := claims["exp"].(float64); ok {
@@ -510,9 +498,9 @@ func ForgotPasswordSendOTP(c *gin.Context) {
 }
 
 type ResetPasswordInput struct {
-	Email       string `json:"email" binding:"required,email"`
-	Otp         string `json:"otp" binding:"required,len=6"`
-	NewPassword string `json:"new_password" binding:"required,min=6"`
+	Email		string	`json:"email" binding:"required,email"`
+	Otp		string	`json:"otp" binding:"required,len=6"`
+	NewPassword	string	`json:"new_password" binding:"required,min=6"`
 }
 
 func ForgotPasswordReset(c *gin.Context) {

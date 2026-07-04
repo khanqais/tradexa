@@ -17,8 +17,6 @@ func InitQStash() {
 		return
 	}
 
-	// The SDK reads QSTASH_URL, QSTASH_CURRENT_SIGNING_KEY, and QSTASH_NEXT_SIGNING_KEY
-	// from the environment itself — no need to pass them manually.
 	QStashClient = qstash.NewClientWithEnv()
 
 	baseURL := os.Getenv("QSTASH_URL")

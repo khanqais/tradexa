@@ -9,8 +9,6 @@ import (
 	"github.com/khanqais/tradexa/websocket"
 )
 
-// SimulateDelivery marks an order as delivered and releases funds.
-// Called directly (no longer via Asynq) from handlers/order.go when seller marks shipped.
 func SimulateDelivery(orderID uint) {
 	var order models.Order
 	if err := config.DB.First(&order, orderID).Error; err != nil {
@@ -37,6 +35,6 @@ func SimulateDelivery(orderID uint) {
 }
 
 func ReleaseFundsToSeller(amount float64, sellerID uint) {
-	// In production, use Cashfree Transfers/Payouts API here
+
 	log.Printf("[ESCROW RELEASE] Transferring ₹%.2f to Seller ID %d...", amount, sellerID)
 }

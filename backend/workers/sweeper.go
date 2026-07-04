@@ -8,18 +8,11 @@ import (
 	"github.com/khanqais/tradexa/models"
 )
 
-// StartAuctionSweeper runs a background goroutine that every 5 minutes
-// finds any active auctions that have expired but weren't closed (e.g., the
-// server restarted exactly when the QStash event fired and missed it).
-//
-// 99% of the time this query returns 0 rows — QStash already handled them.
-// It's a cheap DB query that acts as a safety net.
 func StartAuctionSweeper() {
 	log.Println("[Sweeper] Auction sweeper started (interval: 5 minutes)")
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	// Run once immediately on startup to catch any auctions missed while the server was down.
 	runSweep()
 
 	for range ticker.C {
@@ -40,7 +33,7 @@ func runSweep() {
 	}
 
 	if len(expiredListings) == 0 {
-		return // nothing to do — the happy path
+		return
 	}
 
 	log.Printf("[Sweeper] Found %d expired auction(s) that need closing", len(expiredListings))
