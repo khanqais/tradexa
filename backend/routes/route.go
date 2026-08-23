@@ -47,9 +47,7 @@ func RegisterRoutes(r *gin.Engine) {
 		api.GET("/stream/:id", middleware.ValidateParamInt("id"), handlers.StreamBid)
 
 		api.POST("/payment/webhook", handlers.WebhookPayment)
-
 		api.POST("/internal/auction-close", handlers.HandleQStashAuctionClose)
-
 		protected := api.Group("/")
 		protected.Use(middleware.AuthRequired())
 		{
