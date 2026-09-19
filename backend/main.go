@@ -45,6 +45,7 @@ func main() {
 	middleware.InitMiddleware()
 
 	go workers.StartAuctionSweeper()
+	go workers.StartHealthPing()
 
 	r := gin.Default()
 
