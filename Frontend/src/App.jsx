@@ -12,6 +12,7 @@ import ConversationsPage from './pages/ConversationsPage';
 import ConversationDetailPage from './pages/ConversationDetailPage';
 import BuyProductsPage from './pages/BuyProductsPage';
 import PaymentStatusPage from './pages/PaymentStatusPage';
+import EditListingPage from './pages/EditListingPage';
 import './App.css';
 
 function Footer() {
@@ -52,6 +53,7 @@ export default function App() {
               <Routes>
                 <Route path="/"              element={<HomePage />} />
                 <Route path="/listings/:id"  element={<ListingDetailPage />} />
+                <Route path="/listings/:id/edit" element={<EditListingPage />} />
                 <Route path="/auth"          element={<AuthPage />} />
                 <Route path="/create"        element={<CreateListingPage />} />
                 <Route path="/my-listings"   element={<MyListingsPage />} />

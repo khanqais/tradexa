@@ -67,7 +67,7 @@ function ProxyRulesPanel() {
             >
               <div className="proxy-rules__body">
                 <p className="proxy-rules__intro">
-                  Tradexa uses <strong>eBay-style proxy bidding</strong>. You set a max price; the system automatically outbids competitors on your behalf, only spending what's necessary.
+                  Tradexa uses <strong>proxy bidding</strong>. You set a max price; the system automatically outbids competitors on your behalf, only spending what's necessary.
                 </p>
                 <div className="proxy-rules__grid">
                   {PROXY_RULES.map((rule) => (
@@ -123,12 +123,12 @@ export default function AuctionsPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams({
         ...filters,
         type: 'auction'
       });
-      
+
       const response = await api.get(`/listings?${params}`);
       setListings(response.data.listings ?? []);
     } catch (err) {
@@ -157,10 +157,10 @@ export default function AuctionsPage() {
 
   return (
     <div className="page">
-     
+
       <section className="hero">
         <div className="hero__content">
-          <motion.h1 
+          <motion.h1
             className="hero__title"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -168,7 +168,7 @@ export default function AuctionsPage() {
           >
             Live Auctions
           </motion.h1>
-          <motion.p 
+          <motion.p
             className="hero__subtitle"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -213,7 +213,7 @@ export default function AuctionsPage() {
 
       <ProxyRulesPanel />
 
-      
+
       <section className="filters">
         <div className="container">
           <div className="filters__content">
@@ -245,7 +245,7 @@ export default function AuctionsPage() {
         </div>
       </section>
 
-      
+
       <section className="listings-grid">
         <div className="container">
           {error && (
@@ -254,7 +254,7 @@ export default function AuctionsPage() {
               <button onClick={loadListings} className="btn btn--primary">Retry</button>
             </div>
           )}
-          
+
           {listings.length === 0 ? (
             <div className="empty-state">
               <h3>No auctions found</h3>
@@ -262,7 +262,7 @@ export default function AuctionsPage() {
               <Link to="/" className="btn btn--primary">Browse All Items</Link>
             </div>
           ) : (
-            <motion.div 
+            <motion.div
               className="listings-grid__content"
               layout
             >
